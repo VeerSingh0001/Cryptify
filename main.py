@@ -32,7 +32,6 @@ def encrypt():
                 key_filename = "encryption_key.key"
             
             encryptor.save_key(key, key_filename)
-            print(f"\n   Key (base64): {base64.b64encode(key).decode()}")
             
         elif choice == '2':
             # Encrypt with existing key
@@ -87,6 +86,7 @@ def encrypt():
 
         elif choice == '4':
             # Decrypt a file
+            encrypt = AESFileEncryptor()
             decryptor = AESFileDecryptor()
             print("\n📂 Decrypt a file")
             
@@ -94,7 +94,7 @@ def encrypt():
             if not key_filename:
                 key_filename = "encryption_key.key"
             
-            key = AESFileEncryptor.load_key(key_filename)
+            key = encrypt.load_key(key_filename)
             if key is None:
                 continue
             
@@ -116,7 +116,7 @@ def encrypt():
             break
             
         else:
-            print("\n✗ Invalid choice. Please enter 1-4.")
+            print("\n✗ Invalid choice. Please enter 1-5.")
         
         input("\nPress Enter to continue...")
 

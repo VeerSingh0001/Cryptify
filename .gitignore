@@ -1,7 +1,8 @@
-AI.py
+AI.*
 Project Plan.txt
 .vscode/
 output
+*.key
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
