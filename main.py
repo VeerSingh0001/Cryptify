@@ -1,4 +1,5 @@
 from encryption import AESFileEncryptor
+from decryption import AESFileDecryptor
 
 def display_encryption_menu():
     """Display the main menu"""
@@ -8,7 +9,8 @@ def display_encryption_menu():
     print("\n1. Generate new encryption key")
     print("2. Encrypt a file (with existing key)")
     print("3. Encrypt a file (generate new key)")
-    print("4. Exit")
+    print("4. Decrypt a file")
+    print("5. Exit")
     print("\n" + "-"*50)
 
 def encrypt():
@@ -18,7 +20,7 @@ def encrypt():
     
     while True:
         display_encryption_menu()
-        choice = input("\nEnter your choice (1-4): ").strip()
+        choice = input("\nEnter your choice (1-5): ").strip()
         
         if choice == '1':
             # Generate and save a new key
@@ -82,8 +84,33 @@ def encrypt():
             
             # Encrypt
             encryptor.encrypt_file(input_file, output_file, key)
-            
+
         elif choice == '4':
+            # Decrypt a file
+            decryptor = AESFileDecryptor()
+            print("\n📂 Decrypt a file")
+            
+            key_filename = input("Enter key filename (default: encryption_key.key): ").strip()
+            if not key_filename:
+                key_filename = "encryption_key.key"
+            
+            key = AESFileEncryptor.load_key(key_filename)
+            if key is None:
+                continue
+            
+            input_file = input("Enter file path to decrypt: ").strip()
+            if not input_file:
+                print("✗ No file specified.")
+                continue
+            
+            # Generate output filename
+            output_file = input(f"Enter output filename (default: {input_file}.decrypted): ").strip()
+            if not output_file:
+                output_file = f"{input_file}.decrypted"
+            
+            decryptor.decrypt_file(input_file, output_file, key)
+
+        elif choice == '5':
             print("\n👋 Thank you for using AES Encryption Tool!")
             print("   Remember to keep your encryption keys safe!\n")
             break
