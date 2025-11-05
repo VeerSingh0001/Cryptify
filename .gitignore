@@ -1,3 +1,8 @@
+AI.py
+Project Plan.txt
+.vscode/
+output
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
