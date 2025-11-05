@@ -86,7 +86,7 @@ def encrypt():
 
         elif choice == '4':
             # Decrypt a file
-            encrypt = AESFileEncryptor()
+            encryptor = AESFileEncryptor()
             decryptor = AESFileDecryptor()
             print("\n📂 Decrypt a file")
             
@@ -94,7 +94,7 @@ def encrypt():
             if not key_filename:
                 key_filename = "encryption_key.key"
             
-            key = encrypt.load_key(key_filename)
+            key = encryptor.load_key(key_filename)
             if key is None:
                 continue
             
