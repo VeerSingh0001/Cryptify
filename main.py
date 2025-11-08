@@ -58,7 +58,10 @@ class InteractiveApp:
             print("6) Encrypt file (for yourself)")
             print("7) Encrypt file (for recipient)")
             print("8) Decrypt file")
-            print("9) Exit")
+            print("9) Delete one of your keypairs")
+            print("10) Delete a recipient public key")
+            print("11) Exit")
+
             choice = input("\nChoice: ").strip()
             try:
                 if choice == '1':
@@ -78,6 +81,10 @@ class InteractiveApp:
                 elif choice == '8':
                     self.decrypt_file()
                 elif choice == '9':
+                    self.delete_my_key()
+                elif choice == '10':
+                    self.delete_recipient_key()
+                elif choice == '11':
                     print("Goodbye.")
                     break
                 else:
@@ -246,6 +253,57 @@ class InteractiveApp:
             f.write(plaintext)
         print("Decrypted ->", outfile)
         self.pause()
+
+    def delete_my_key(self):
+        keys = self.km.list_keys()
+        if not keys:
+            print("No personal keys found.")
+            self.pause()
+            return
+
+        print("\nYour keys:")
+        for i,k in enumerate(keys,1):
+            print(f"{i}. ID: {k['id']} - Created: {k['created']}")
+
+        kid = input("\nEnter Key ID to delete: ").strip()
+        confirm = input(f"Are you sure you want to delete '{kid}'? (yes/no): ").strip().lower()
+        if confirm != "yes":
+            print("Cancelled.")
+            self.pause()
+            return
+
+        if self.km.delete_keypair(kid):
+            print(f"Key '{kid}' deleted successfully ✅")
+        else:
+            print("Key not found ❌")
+
+        self.pause()
+
+    def delete_recipient_key(self):
+        keys = self.km.list_public_keys()
+        if not keys:
+            print("No recipient keys imported.")
+            self.pause()
+            return
+
+        print("\nRecipient Keys:")
+        for i,k in enumerate(keys,1):
+            print(f"{i}. {k['recipient']} - Imported: {k['exported']}")
+
+        name = input("\nRecipient name to delete: ").strip()
+        confirm = input(f"Delete recipient key '{name}'? (yes/no): ").strip().lower()
+        if confirm != "yes":
+            print("Cancelled.")
+            self.pause()
+            return
+
+        if self.km.delete_public_key(name):
+            print(f"Recipient key '{name}' removed ✅")
+        else:
+            print("Recipient key not found ❌")
+
+        self.pause()
+
 
 def main():
     if not hasattr(oqs, 'KeyEncapsulation'):

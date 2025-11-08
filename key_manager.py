@@ -207,3 +207,29 @@ class KeyManager:
             except Exception:
                 continue
         return result
+
+    def delete_keypair(self, key_id: str):
+        """Delete your keypair (public stub + secret in OS or JSON)."""
+        key_file = self.storage_path / f"{key_id}.json"
+
+        # If OS key vault used
+        try:
+            keyring.delete_password(self.SERVICE_NAME, key_id)
+        except Exception:
+            pass
+
+        # Remove JSON file
+        if key_file.exists():
+            key_file.unlink()
+            return True
+
+        return False
+
+    def delete_public_key(self, recipient_name: str):
+        """Delete a stored recipient public key."""
+        pubfile = self.pubkey_dir / f"{recipient_name}.json"
+        if pubfile.exists():
+            pubfile.unlink()
+            return True
+        return False
+
