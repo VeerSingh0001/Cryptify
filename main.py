@@ -1,124 +1,259 @@
-from encryption import AESFileEncryptor
-from decryption import AESFileDecryptor
+import sys
+import json
+import getpass
+from pathlib import Path
 
-def display_encryption_menu():
-    """Display the main menu"""
-    print("\n" + "="*50)
-    print("     AES-256 GCM File Encryption Tool")
-    print("="*50)
-    print("\n1. Generate new encryption key")
-    print("2. Encrypt a file (with existing key)")
-    print("3. Encrypt a file (generate new key)")
-    print("4. Decrypt a file")
-    print("5. Exit")
-    print("\n" + "-"*50)
+# local modules
+from key_manager import KeyManager
+from encryption import MLKEMCrypto
+from decryption import MLKEMDecryptor
 
-def encrypt():
-    encryptor = AESFileEncryptor()
-    
-    print("\n🔐 Welcome to AES-256 GCM File Encryption Tool")
-    
-    while True:
-        display_encryption_menu()
-        choice = input("\nEnter your choice (1-5): ").strip()
-        
-        if choice == '1':
-            # Generate and save a new key
-            print("\n🔑 Generating new encryption key...")
-            key = encryptor.generate_key()
-            
-            key_filename = input("Enter filename to save key (default: encryption_key.key): ").strip()
-            if not key_filename:
-                key_filename = "encryption_key.key"
-            
-            encryptor.save_key(key, key_filename)
-            
-        elif choice == '2':
-            # Encrypt with existing key
-            print("\n📂 Encrypt file with existing key")
-            
-            key_filename = input("Enter key filename (default: encryption_key.key): ").strip()
-            if not key_filename:
-                key_filename = "encryption_key.key"
-            
-            key = encryptor.load_key(key_filename)
-            if key is None:
-                continue
-            
-            input_file = input("Enter file path to encrypt: ").strip()
-            if not input_file:
-                print("✗ No file specified.")
-                continue
-            
-            # Generate output filename
-            output_file = input(f"Enter output filename (default: {input_file}.encrypted): ").strip()
-            if not output_file:
-                output_file = f"{input_file}.encrypted"
-            
-            encryptor.encrypt_file(input_file, output_file, key)
-            
-        elif choice == '3':
-            # Generate new key and encrypt
-            print("\n📂 Encrypt file with new key")
-            
-            input_file = input("Enter file path to encrypt: ").strip()
-            if not input_file:
-                print("✗ No file specified.")
-                continue
-            
-            # Generate output filename
-            output_file = input(f"Enter output filename (default: {input_file}.encrypted): ").strip()
-            if not output_file:
-                output_file = f"{input_file}.encrypted"
-            
-            # Generate key
-            print("\n🔑 Generating new encryption key...")
-            key = encryptor.generate_key()
-            
-            key_filename = input("Enter filename to save key (default: encryption_key.key): ").strip()
-            if not key_filename:
-                key_filename = "encryption_key.key"
-            
-            encryptor.save_key(key, key_filename)
-            
-            # Encrypt
-            encryptor.encrypt_file(input_file, output_file, key)
+import oqs
+import base64
 
-        elif choice == '4':
-            # Decrypt a file
-            encryptor = AESFileEncryptor()
-            decryptor = AESFileDecryptor()
-            print("\n📂 Decrypt a file")
-            
-            key_filename = input("Enter key filename (default: encryption_key.key): ").strip()
-            if not key_filename:
-                key_filename = "encryption_key.key"
-            
-            key = encryptor.load_key(key_filename)
-            if key is None:
-                continue
-            
-            input_file = input("Enter file path to decrypt: ").strip()
-            if not input_file:
-                print("✗ No file specified.")
-                continue
-            
-            # Generate output filename
-            output_file = input(f"Enter output filename (default: {input_file}.decrypted): ").strip()
-            if not output_file:
-                output_file = f"{input_file}.decrypted"
-            
-            decryptor.decrypt_file(input_file, output_file, key)
+def _to_bytearray(b):
+    return bytearray(b) if b is not None else bytearray()
 
-        elif choice == '5':
-            print("\n👋 Thank you for using AES Encryption Tool!")
-            print("   Remember to keep your encryption keys safe!\n")
-            break
-            
-        else:
-            print("\n✗ Invalid choice. Please enter 1-5.")
-        
+def secure_erase(barr):
+    if barr is None:
+        return
+    if not isinstance(barr, (bytearray, memoryview)):
+        try:
+            barr = bytearray(barr)
+        except Exception:
+            return
+    try:
+        for i in range(len(barr)):
+            barr[i] = 0
+    except Exception:
+        pass
+
+class InteractiveApp:
+    def __init__(self):
+        self.km = KeyManager()
+        self.crypto = MLKEMCrypto()
+        self.decryptor = MLKEMDecryptor()
+
+    def clear(self):
+        import os
+        os.system('clear' if os.name!='nt' else 'cls')
+
+    def pause(self):
         input("\nPress Enter to continue...")
 
+    def print_header(self):
+        print("\n" + "="*60)
+        print("      ML-KEM ENCRYPTION TOOL - Secure Modular Version")
+        print("="*60 + "\n")
+
+    def menu(self):
+        while True:
+            self.clear()
+            self.print_header()
+            print("1) Generate new keypair")
+            print("2) Export public key")
+            print("3) Import public key (recipient)")
+            print("4) List your keys")
+            print("5) List imported recipient public keys")
+            print("6) Encrypt file (for yourself)")
+            print("7) Encrypt file (for recipient)")
+            print("8) Decrypt file")
+            print("9) Exit")
+            choice = input("\nChoice: ").strip()
+            try:
+                if choice == '1':
+                    self.generate_key()
+                elif choice == '2':
+                    self.export_public_key()
+                elif choice == '3':
+                    self.import_public_key()
+                elif choice == '4':
+                    self.list_keys()
+                elif choice == '5':
+                    self.list_public_keys()
+                elif choice == '6':
+                    self.encrypt_for_self()
+                elif choice == '7':
+                    self.encrypt_for_recipient()
+                elif choice == '8':
+                    self.decrypt_file()
+                elif choice == '9':
+                    print("Goodbye.")
+                    break
+                else:
+                    print("Invalid choice.")
+                    self.pause()
+            except KeyboardInterrupt:
+                print("\nOperation cancelled by user.")
+                self.pause()
+            except Exception as e:
+                print("Error:", e)
+                self.pause()
+
+    def generate_key(self):
+        kid = input("Enter Key ID: ").strip()
+        if not kid:
+            print("Key ID cannot be empty.")
+            self.pause()
+            return
+        password = getpass.getpass("Set a password to protect your private key: ")
+        if len(password) < 8:
+            print("Password should be at least 8 characters.")
+            self.pause()
+            return
+
+        print("Generating keypair (this may take a moment)...")
+        with oqs.KeyEncapsulation("Kyber768") as kem:
+            public_key = kem.generate_keypair()
+            secret_key = kem.export_secret_key()
+
+        try:
+            path = self.km.save_keypair(public_key, secret_key, kid, password)
+            print(f"Keypair saved: {path}")
+        finally:
+            secure_erase(_to_bytearray(secret_key))
+
+        self.pause()
+
+    def export_public_key(self):
+        kid = input("Enter Key ID to export: ").strip()
+        out = input("Output filename (leave empty for <keyid>_public.json): ").strip()
+        if not out:
+            out = f"{kid}_public.json"
+        pwd = getpass.getpass("Password: ")
+        try:
+            path = self.km.export_public_key(kid, pwd, out)
+            print(f"Public key exported -> {path}")
+        except Exception as e:
+            print("Export failed:", e)
+        self.pause()
+
+    def import_public_key(self):
+        file = input("Enter public key file path: ").strip()
+        if not Path(file).exists():
+            print("File does not exist.")
+            self.pause()
+            return
+        name = input("Name for recipient (e.g., bob): ").strip()
+        try:
+            path = self.km.import_public_key(file, name)
+            print(f"Imported for recipient '{name}' -> {path}")
+        except Exception as e:
+            print("Import failed:", e)
+        self.pause()
+
+    def list_keys(self):
+        keys = self.km.list_keys()
+        if not keys:
+            print("No keys found.")
+        else:
+            for i, k in enumerate(keys, 1):
+                print(f"{i}. ID: {k['id']}  Created: {k.get('created','Unknown')}")
+        self.pause()
+
+    def list_public_keys(self):
+        keys = self.km.list_public_keys()
+        if not keys:
+            print("No recipient public keys found.")
+        else:
+            for i, k in enumerate(keys, 1):
+                print(f"{i}. Recipient: {k['recipient']}  Imported: {k.get('exported','Unknown')}")
+        self.pause()
+
+    def encrypt_for_self(self):
+        kid = input("Key ID to encrypt for (your key): ").strip()
+        password = getpass.getpass("Password for key: ")
+        infile = input("Input file path: ").strip()
+        if not Path(infile).exists():
+            print("Input file not found.")
+            self.pause()
+            return
+        try:
+            public_key, _ = self.km.load_keypair(kid, password)
+        except Exception as e:
+            print("Load keypair failed:", e)
+            self.pause()
+            return
+
+        data = open(infile, "rb").read()
+        pkg = self.crypto.encrypt_data_for_self(data, public_key)
+        pkg['recipient'] = 'self'
+        pkg['for_key_id'] = kid
+        outfile = input("Output (default: <infile>.enc): ").strip()
+        if not outfile:
+            outfile = infile + ".enc"
+        with open(outfile, "w") as f:
+            json.dump(pkg, f, indent=2)
+        print("Encrypted file saved to:", outfile)
+        self.pause()
+
+    def encrypt_for_recipient(self):
+        recipients = self.km.list_public_keys()
+        if not recipients:
+            print("No recipient keys imported. Import first.")
+            self.pause()
+            return
+        print("Imported recipients:")
+        for i, r in enumerate(recipients, 1):
+            print(f"{i}. {r['recipient']}")
+        name = input("Recipient name: ").strip()
+        try:
+            public_key = self.km.get_public_key(name)
+        except Exception as e:
+            print("Failed to load public key:", e)
+            self.pause()
+            return
+        infile = input("Input file path: ").strip()
+        if not Path(infile).exists():
+            print("Input file not found.")
+            self.pause()
+            return
+        data = open(infile, "rb").read()
+        pkg = self.crypto.encrypt_data_for_recipient(data, public_key)
+        pkg['recipient'] = name
+        outfile = input("Output (default: <infile>.enc): ").strip()
+        if not outfile:
+            outfile = infile + ".enc"
+        with open(outfile, "w") as f:
+            json.dump(pkg, f, indent=2)
+        print("Encrypted for", name, "->", outfile)
+        self.pause()
+
+    def decrypt_file(self):
+        infile = input("Encrypted file path: ").strip()
+        if not Path(infile).exists():
+            print("File not found.")
+            self.pause()
+            return
+        kid = input("Your Key ID: ").strip()
+        pwd = getpass.getpass("Password: ")
+        try:
+            _, secret_key = self.km.load_keypair(kid, pwd)
+        except Exception as e:
+            print("Load keypair failed:", e)
+            self.pause()
+            return
+        pkg = json.load(open(infile))
+        try:
+            plaintext = self.decryptor.decrypt_package(pkg, secret_key)
+        finally:
+            secure_erase(_to_bytearray(secret_key))
+
+        outfile = input("Output filename (default: <infile>_decrypted): ").strip()
+        if not outfile:
+            outfile = infile.replace(".enc","") + "_decrypted"
+        with open(outfile, "wb") as f:
+            f.write(plaintext)
+        print("Decrypted ->", outfile)
+        self.pause()
+
+def main():
+    if not hasattr(oqs, 'KeyEncapsulation'):
+        print("ERROR: liboqs-python not installed or not available.")
+        print("Install: pip install git+https://github.com/open-quantum-safe/liboqs-python.git")
+        sys.exit(1)
+    app = InteractiveApp()
+    app.menu()
+
 if __name__ == "__main__":
-    encrypt()
+    main()

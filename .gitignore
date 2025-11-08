@@ -3,6 +3,7 @@ Project Plan.txt
 .vscode/
 output
 *.key
+test*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,77 +1,84 @@
-import os
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.backends import default_backend
-import base64
+#!/usr/bin/env python3
+"""
+encryption.py
+Encrypt helpers using ML-KEM (liboqs) and AES-GCM with HKDF key derivation.
 
-class AESFileEncryptor:
-    def __init__(self):
-        self.key_size = 32  # 256 bits = 32 bytes
-        
-    def generate_key(self):
-        """Generate a random 256-bit AES key"""
-        key = AESGCM.generate_key(bit_length=256)
-        return key
-    
-    def save_key(self, key, filename="encryption_key.key"):
-        """Save the encryption key to a file"""
+Exports:
+- MLKEMCrypto.encrypt_data_for_recipient(public_key_bytes, plaintext_bytes) -> dict
+- MLKEMCrypto.encrypt_data_for_self(public_key_bytes, plaintext_bytes) -> dict
+"""
+
+import oqs
+import base64
+import secrets
+from datetime import datetime
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+# secure helpers
+def _to_bytearray(b):
+    return bytearray(b) if b is not None else bytearray()
+
+def secure_erase(barr):
+    if barr is None:
+        return
+    if not isinstance(barr, (bytearray, memoryview)):
         try:
-            with open(filename, 'wb') as key_file:
-                key_file.write(key)
-            print(f"✓ Key saved to: {filename}")
-            print(f"  IMPORTANT: Keep this key file safe! You'll need it for decryption.")
-        except Exception as e:
-            print(f"✗ Error saving key: {e}")
-    
-    def load_key(self, filename="encryption_key.key"):
-        """Load encryption key from a file"""
+            barr = bytearray(barr)
+        except Exception:
+            return
+    try:
+        for i in range(len(barr)):
+            barr[i] = 0
+    except Exception:
+        pass
+
+class MLKEMCrypto:
+    def __init__(self, kem_algorithm: str = "Kyber768"):
+        self.kem_algorithm = kem_algorithm
+
+    def _derive_aes_key(self, shared_secret: bytes, salt: bytes) -> bytes:
+        aes_key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            info=b'mlkem-aes-gcm-v1'
+        ).derive(shared_secret)
+        return aes_key
+
+    def encrypt_data_for_recipient(self, plaintext: bytes, recipient_public_key: bytes) -> dict:
+        """Encapsulate to recipient public key and encrypt plaintext with AESGCM."""
+        if isinstance(plaintext, str):
+            plaintext = plaintext.encode('utf-8')
+
+        salt = secrets.token_bytes(32)
+        nonce = secrets.token_bytes(12)
+
+        with oqs.KeyEncapsulation(self.kem_algorithm) as kem:
+            ciphertext, shared_secret = kem.encap_secret(recipient_public_key)
+
         try:
-            with open(filename, 'rb') as key_file:
-                key = key_file.read()
-            if len(key) != 32:
-                raise ValueError("Invalid key size. Expected 32 bytes for AES-256.")
-            print(f"✓ Key loaded from: {filename}")
-            return key
-        except FileNotFoundError:
-            print(f"✗ Key file not found: {filename}")
-            return None
-        except Exception as e:
-            print(f"✗ Error loading key: {e}")
-            return None
-    
-    def encrypt_file(self, input_file, output_file, key):
-        """Encrypt a file using AES-GCM"""
+            aes_key = self._derive_aes_key(shared_secret, salt)
+        finally:
+            secure_erase(_to_bytearray(shared_secret))
+
         try:
-            # Read the file content
-            with open(input_file, 'rb') as f:
-                plaintext = f.read()
-            
-            print(f"\n📄 File to encrypt: {input_file}")
-            print(f"   Size: {len(plaintext)} bytes")
-            
-            # Create AESGCM cipher
-            aesgcm = AESGCM(key)
-            
-            # Generate a random 96-bit nonce (12 bytes)
-            nonce = os.urandom(12)
-            
-            # Encrypt the data (this also generates the authentication tag)
-            ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-            
-            # Save nonce + ciphertext to output file
-            # Format: [12 bytes nonce][encrypted data with tag]
-            with open(output_file, 'wb') as f:
-                f.write(nonce + ciphertext)
-            
-            print(f"\n✓ Encryption successful!")
-            print(f"   Encrypted file: {output_file}")
-            print(f"   Encrypted size: {len(nonce + ciphertext)} bytes")
-            print(f"   Nonce (hex): {nonce.hex()}")
-            
-            return True
-            
-        except FileNotFoundError:
-            print(f"\n✗ Error: File not found - {input_file}")
-            return False
-        except Exception as e:
-            print(f"\n✗ Encryption failed: {e}")
-            return False
+            aesgcm = AESGCM(aes_key)
+            encrypted = aesgcm.encrypt(nonce, plaintext, associated_data=None)
+        finally:
+            secure_erase(_to_bytearray(aes_key))
+
+        pkg = {
+            "encrypted_data": base64.b64encode(encrypted).decode('utf-8'),
+            "ciphertext": base64.b64encode(ciphertext).decode('utf-8'),
+            "nonce": base64.b64encode(nonce).decode('utf-8'),
+            "salt": base64.b64encode(salt).decode('utf-8'),
+            "algorithm": self.kem_algorithm,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        return pkg
+
+    # Convenience function: same as encrypt_data_for_recipient but name kept for semantics
+    def encrypt_data_for_self(self, plaintext: bytes, own_public_key: bytes) -> dict:
+        return self.encrypt_data_for_recipient(plaintext, own_public_key)
