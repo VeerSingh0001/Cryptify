@@ -1,2 +1,6 @@
+argon2
+argon2-cffi
 cryptography
+liboqs-python
+cffi
 oqs

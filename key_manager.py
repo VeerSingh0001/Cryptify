@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-key_manager.py
-Secure key storage and public-key import/export.
-
-- Argon2id (argon2-cffi) preferred; falls back to PBKDF2-HMAC-SHA256.
-- AES-GCM (cryptography) for encrypting private keys.
-- Atomic file writes and best-effort zeroization.
-"""
-
 from pathlib import Path
 from datetime import datetime
 import json

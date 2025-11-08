@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-decryption.py
-Decrypt helpers corresponding to encryption.py
-
-Exports:
-- MLKEMDecryptor.decrypt_package(encrypted_package, secret_key_bytes) -> plaintext_bytes
-"""
-
 import base64
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes

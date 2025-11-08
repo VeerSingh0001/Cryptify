@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-encryption.py
-Encrypt helpers using ML-KEM (liboqs) and AES-GCM with HKDF key derivation.
-
-Exports:
-- MLKEMCrypto.encrypt_data_for_recipient(public_key_bytes, plaintext_bytes) -> dict
-- MLKEMCrypto.encrypt_data_for_self(public_key_bytes, plaintext_bytes) -> dict
-"""
-
 import oqs
 import base64
 import secrets
