@@ -1,17 +1,20 @@
-import json
-
-import oqs
 import base64
+import json
 import secrets
 from datetime import datetime
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+import oqs
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
 from key_manager import derive_key_argon2
+
 
 # secure helpers
 def _to_bytearray(b):
     return bytearray(b) if b is not None else bytearray()
+
 
 def secure_erase(barr):
     if barr is None:
@@ -26,6 +29,7 @@ def secure_erase(barr):
             barr[i] = 0
     except Exception:
         pass
+
 
 class MLKEMCrypto:
     def __init__(self, kem_algorithm: str = "Kyber768"):
@@ -77,13 +81,13 @@ class MLKEMCrypto:
         return self.encrypt_data_for_recipient(plaintext, own_public_key)
 
     @staticmethod
-    def reencrypt_data(data:dict,key:bytes):
+    def reencrypt_data(data: dict, key: bytes):
         """Re-encrypt data using symmetric key encryption (AESGCM)."""
         nonce = secrets.token_bytes(12)
         key_bytes = base64.b64encode(key).decode("utf-8")
-        aes_key = derive_key_argon2(key_bytes,nonce,32)
+        aes_key = derive_key_argon2(key_bytes, nonce, 32)
         aesgcm = AESGCM(aes_key)
         data_bytes = json.dumps(data).encode('utf-8')
-        cipher_text = aesgcm.encrypt(nonce,data_bytes,associated_data=None)
-        enc_data = cipher_text[:5] + nonce+ cipher_text[5:]
+        cipher_text = aesgcm.encrypt(nonce, data_bytes, associated_data=None)
+        enc_data = cipher_text[:5] + nonce + cipher_text[5:]
         return enc_data

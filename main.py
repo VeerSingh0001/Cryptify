@@ -1,20 +1,18 @@
-import sys
-import json
 import getpass
+import json
+import sys
 from pathlib import Path
 
-import pickle
-
-# local modules
-from key_manager import KeyManager
-from encryption import MLKEMCrypto
-from decryption import MLKEMDecryptor
-
 import oqs
-import base64
+
+from decryption import MLKEMDecryptor
+from encryption import MLKEMCrypto
+from key_manager import KeyManager
+
 
 def _to_bytearray(b):
     return bytearray(b) if b is not None else bytearray()
+
 
 def secure_erase(barr):
     if barr is None:
@@ -30,6 +28,7 @@ def secure_erase(barr):
     except Exception:
         pass
 
+
 class InteractiveApp:
     def __init__(self):
         self.km = KeyManager()
@@ -38,15 +37,15 @@ class InteractiveApp:
 
     def clear(self):
         import os
-        os.system('clear' if os.name!='nt' else 'cls')
+        os.system('clear' if os.name != 'nt' else 'cls')
 
     def pause(self):
         input("\nPress Enter to continue...")
 
     def print_header(self):
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("      ML-KEM ENCRYPTION TOOL - Secure Modular Version")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
     def menu(self):
         while True:
@@ -157,7 +156,7 @@ class InteractiveApp:
             print("No keys found.")
         else:
             for i, k in enumerate(keys, 1):
-                print(f"{i}. ID: {k['id']}  Created: {k.get('created','Unknown')}")
+                print(f"{i}. ID: {k['id']}  Created: {k.get('created', 'Unknown')}")
         self.pause()
 
     def list_public_keys(self):
@@ -166,7 +165,7 @@ class InteractiveApp:
             print("No recipient public keys found.")
         else:
             for i, k in enumerate(keys, 1):
-                print(f"{i}. Recipient: {k['recipient']}  Imported: {k.get('exported','Unknown')}")
+                print(f"{i}. Recipient: {k['recipient']}  Imported: {k.get('exported', 'Unknown')}")
         self.pause()
 
     def encrypt_for_self(self):
@@ -188,7 +187,7 @@ class InteractiveApp:
         pkg = self.crypto.encrypt_data_for_self(data, public_key)
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
-        enc_data = self.crypto.reencrypt_data(data=pkg,key=public_key)
+        enc_data = self.crypto.reencrypt_data(data=pkg, key=public_key)
         outfile = input("Output (default: <infile>.enc): ").strip()
         if not outfile:
             outfile = infile + ".enc"
@@ -251,7 +250,7 @@ class InteractiveApp:
 
         outfile = input("Output filename (default: <infile>_decrypted): ").strip()
         if not outfile:
-            outfile = infile.replace(".enc","") + "_decrypted"
+            outfile = infile.replace(".enc", "") + "_decrypted"
         with open(outfile, "wb") as f:
             f.write(plaintext)
         print("Decrypted ->", outfile)
@@ -265,7 +264,7 @@ class InteractiveApp:
             return
 
         print("\nYour keys:")
-        for i,k in enumerate(keys,1):
+        for i, k in enumerate(keys, 1):
             print(f"{i}. ID: {k['id']} - Created: {k['created']}")
 
         kid = input("\nEnter Key ID to delete: ").strip()
@@ -290,7 +289,7 @@ class InteractiveApp:
             return
 
         print("\nRecipient Keys:")
-        for i,k in enumerate(keys,1):
+        for i, k in enumerate(keys, 1):
             print(f"{i}. {k['recipient']} - Imported: {k['exported']}")
 
         name = input("\nRecipient name to delete: ").strip()
@@ -315,6 +314,7 @@ def main():
         sys.exit(1)
     app = InteractiveApp()
     app.menu()
+
 
 if __name__ == "__main__":
     main()

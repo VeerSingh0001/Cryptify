@@ -1,27 +1,30 @@
-from pathlib import Path
-from datetime import datetime
+import base64
 import json
 import os
-import base64
 import secrets
 import shutil
+from datetime import datetime
+from pathlib import Path
 
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
 
 # Optional Argon2
 try:
     from argon2.low_level import hash_secret_raw, Type as Argon2Type
+
     ARGON2_AVAILABLE = True
 except Exception:
     ARGON2_AVAILABLE = False
+
 
 # -------------------------
 # Secure helpers
 # -------------------------
 def _to_bytearray(b):
     return bytearray(b) if b is not None else bytearray()
+
 
 def secure_erase(barr):
     """Best-effort overwrite of bytearray or bytes-like (converted to bytearray)."""
@@ -37,6 +40,7 @@ def secure_erase(barr):
             barr[i] = 0
     except Exception:
         pass
+
 
 # -------------------------
 # KDFs
@@ -56,6 +60,7 @@ def derive_key_argon2(password: str, salt: bytes, length: int = 32) -> bytes:
     secure_erase(_to_bytearray(pwd))
     return derived
 
+
 def derive_key_pbkdf2(password: str, salt: bytes, length: int = 32) -> bytes:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -65,6 +70,7 @@ def derive_key_pbkdf2(password: str, salt: bytes, length: int = 32) -> bytes:
     )
     return kdf.derive(password.encode('utf-8'))
 
+
 def derive_key(password: str, salt: bytes, length: int = 32) -> bytes:
     if ARGON2_AVAILABLE:
         try:
@@ -73,6 +79,7 @@ def derive_key(password: str, salt: bytes, length: int = 32) -> bytes:
             # fallback
             pass
     return derive_key_pbkdf2(password, salt, length)
+
 
 # -------------------------
 # KeyManager class
@@ -203,7 +210,7 @@ class KeyManager:
             try:
                 with open(k, "r") as f:
                     d = json.load(f)
-                result.append({"recipient": k.stem, "exported": d.get('exported','Unknown')})
+                result.append({"recipient": k.stem, "exported": d.get('exported', 'Unknown')})
             except Exception:
                 continue
         return result
@@ -232,4 +239,3 @@ class KeyManager:
             pubfile.unlink()
             return True
         return False
-

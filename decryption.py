@@ -1,12 +1,15 @@
 import base64
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+import oqs
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-import oqs
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
 
 # secure helpers
 def _to_bytearray(b):
     return bytearray(b) if b is not None else bytearray()
+
 
 def secure_erase(barr):
     if barr is None:
@@ -21,6 +24,7 @@ def secure_erase(barr):
             barr[i] = 0
     except Exception:
         pass
+
 
 class MLKEMDecryptor:
     def __init__(self, kem_algorithm: str = "Kyber768"):
