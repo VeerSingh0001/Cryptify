@@ -1,3 +1,5 @@
+import json
+
 import oqs
 import base64
 import secrets
@@ -5,6 +7,7 @@ from datetime import datetime
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from key_manager import derive_key_argon2
 
 # secure helpers
 def _to_bytearray(b):
@@ -72,3 +75,15 @@ class MLKEMCrypto:
     # Convenience function: same as encrypt_data_for_recipient but name kept for semantics
     def encrypt_data_for_self(self, plaintext: bytes, own_public_key: bytes) -> dict:
         return self.encrypt_data_for_recipient(plaintext, own_public_key)
+
+    @staticmethod
+    def reencrypt_data(data:dict,key:bytes):
+        """Re-encrypt data using symmetric key encryption (AESGCM)."""
+        nonce = secrets.token_bytes(12)
+        key_bytes = base64.b64encode(key).decode("utf-8")
+        aes_key = derive_key_argon2(key_bytes,nonce,32)
+        aesgcm = AESGCM(aes_key)
+        data_bytes = json.dumps(data).encode('utf-8')
+        cipher_text = aesgcm.encrypt(nonce,data_bytes,associated_data=None)
+        enc_data = cipher_text[:5] + nonce+ cipher_text[5:]
+        return enc_data

@@ -3,6 +3,8 @@ import json
 import getpass
 from pathlib import Path
 
+import pickle
+
 # local modules
 from key_manager import KeyManager
 from encryption import MLKEMCrypto
@@ -186,11 +188,12 @@ class InteractiveApp:
         pkg = self.crypto.encrypt_data_for_self(data, public_key)
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
+        enc_data = self.crypto.reencrypt_data(data=pkg,key=public_key)
         outfile = input("Output (default: <infile>.enc): ").strip()
         if not outfile:
             outfile = infile + ".enc"
-        with open(outfile, "w") as f:
-            json.dump(pkg, f, indent=2)
+        with open(outfile, "wb") as f:
+            f.write(enc_data)
         print("Encrypted file saved to:", outfile)
         self.pause()
 
