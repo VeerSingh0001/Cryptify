@@ -3,12 +3,16 @@ import json
 import secrets
 from datetime import datetime
 
+
 import oqs
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+import  zstandard as zstd
 
 from key_manager import derive_key_argon2
+from CompressorDecompressor import  CompressorDecompressor
+
 
 
 # secure helpers
@@ -34,6 +38,7 @@ def secure_erase(barr):
 class MLKEMCrypto:
     def __init__(self, kem_algorithm: str = "Kyber768"):
         self.kem_algorithm = kem_algorithm
+        self.compobj = CompressorDecompressor()
 
     def _derive_aes_key(self, shared_secret: bytes, salt: bytes) -> bytes:
         aes_key = HKDF(
@@ -44,10 +49,11 @@ class MLKEMCrypto:
         ).derive(shared_secret)
         return aes_key
 
-    def encrypt_data_for_recipient(self, plaintext: bytes, recipient_public_key: bytes) -> dict:
+    def encrypt_data_for_recipient(self, infile, recipient_public_key: bytes) -> dict:
         """Encapsulate to recipient public key and encrypt plaintext with AESGCM."""
-        if isinstance(plaintext, str):
-            plaintext = plaintext.encode('utf-8')
+        print("Encrypting data... ")
+        # if isinstance(plaintext, str):
+        #     plaintext = plaintext.encode('utf-8')
 
         salt = secrets.token_bytes(32)
         nonce = secrets.token_bytes(12)
@@ -62,7 +68,9 @@ class MLKEMCrypto:
 
         try:
             aesgcm = AESGCM(aes_key)
-            encrypted = aesgcm.encrypt(nonce, plaintext, associated_data=None)
+            compressed_plaintext = self.compobj.compress_file(infile)
+
+            encrypted = aesgcm.encrypt(nonce, compressed_plaintext, associated_data=None)
         finally:
             secure_erase(_to_bytearray(aes_key))
 
@@ -80,14 +88,14 @@ class MLKEMCrypto:
     def encrypt_data_for_self(self, plaintext: bytes, own_public_key: bytes) -> dict:
         return self.encrypt_data_for_recipient(plaintext, own_public_key)
 
-    @staticmethod
-    def reencrypt_data(data: dict, key: bytes):
+    def reencrypt_data(self,data: dict, key: bytes):
         """Re-encrypt data using symmetric key encryption (AESGCM)."""
         nonce = secrets.token_bytes(12)
         key_bytes = base64.b64encode(key).decode("utf-8")
         aes_key = derive_key_argon2(key_bytes, nonce, 32)
         aesgcm = AESGCM(aes_key)
         data_bytes = json.dumps(data).encode('utf-8')
+        # compressed_data_bytes = self.compobj.compress_data(data_bytes)
         cipher_text = aesgcm.encrypt(nonce, data_bytes, associated_data=None)
         enc_data = cipher_text[:5] + nonce + cipher_text[5:]
         return enc_data

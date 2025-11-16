@@ -183,8 +183,8 @@ class InteractiveApp:
             self.pause()
             return
 
-        data = open(infile, "rb").read()
-        pkg = self.crypto.encrypt_data_for_self(data, public_key)
+        # data = open(infile, "rb").read()
+        pkg = self.crypto.encrypt_data_for_self(infile, public_key)
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
         enc_data = self.crypto.reencrypt_data(data=pkg, key=public_key)
