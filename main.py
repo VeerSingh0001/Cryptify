@@ -8,25 +8,7 @@ from CompressorDecompressor import CompressorDecompressor
 from decryption import MLKEMDecryptor
 from encryption import MLKEMCrypto
 from key_manager import KeyManager
-
-
-def _to_bytearray(b):
-    return bytearray(b) if b is not None else bytearray()
-
-
-def secure_erase(barr):
-    if barr is None:
-        return
-    if not isinstance(barr, (bytearray, memoryview)):
-        try:
-            barr = bytearray(barr)
-        except Exception:
-            return
-    try:
-        for i in range(len(barr)):
-            barr[i] = 0
-    except Exception:
-        pass
+from utils import _to_bytearray, secure_erase
 
 
 class InteractiveApp:

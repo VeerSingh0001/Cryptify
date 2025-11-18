@@ -10,6 +10,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+from utils import _to_bytearray, secure_erase
+
 # Optional Argon2
 try:
     from argon2.low_level import hash_secret_raw, Type as Argon2Type
@@ -17,29 +19,6 @@ try:
     ARGON2_AVAILABLE = True
 except Exception:
     ARGON2_AVAILABLE = False
-
-
-# -------------------------
-# Secure helpers
-# -------------------------
-def _to_bytearray(b):
-    return bytearray(b) if b is not None else bytearray()
-
-
-def secure_erase(barr):
-    """Best-effort overwrite of bytearray or bytes-like (converted to bytearray)."""
-    if barr is None:
-        return
-    if not isinstance(barr, (bytearray, memoryview)):
-        try:
-            barr = bytearray(barr)
-        except Exception:
-            return
-    try:
-        for i in range(len(barr)):
-            barr[i] = 0
-    except Exception:
-        pass
 
 
 # -------------------------

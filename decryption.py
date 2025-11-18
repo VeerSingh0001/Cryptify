@@ -2,47 +2,17 @@ import base64
 import json
 
 import oqs
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from CompressorDecompressor import CompressorDecompressor
 from key_manager import derive_key_argon2
-
-
-# secure helpers
-def _to_bytearray(b):
-    return bytearray(b) if b is not None else bytearray()
-
-
-def secure_erase(barr):
-    if barr is None:
-        return
-    if not isinstance(barr, (bytearray, memoryview)):
-        try:
-            barr = bytearray(barr)
-        except Exception:
-            return
-    try:
-        for i in range(len(barr)):
-            barr[i] = 0
-    except Exception:
-        pass
+from utils import _to_bytearray, secure_erase, derive_aes_key
 
 
 class MLKEMDecryptor:
     def __init__(self, kem_algorithm: str = "Kyber768"):
         self.kem_algorithm = kem_algorithm
         self.compobj = CompressorDecompressor()
-
-    def _derive_aes_key(self, shared_secret: bytes, salt: bytes) -> bytes:
-        aes_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            info=b'mlkem-aes-gcm-v1'
-        ).derive(shared_secret)
-        return aes_key
 
     def decrypt_package(self, package: dict, secret_key: bytes) -> bytes:
         print("Decrypting package...")
@@ -55,7 +25,7 @@ class MLKEMDecryptor:
             shared_secret = kem.decap_secret(ciphertext)
 
         try:
-            aes_key = self._derive_aes_key(shared_secret, salt)
+            aes_key = derive_aes_key(shared_secret, salt)
         finally:
             secure_erase(_to_bytearray(shared_secret))
 

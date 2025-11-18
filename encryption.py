@@ -4,32 +4,11 @@ import secrets
 from datetime import datetime
 
 import oqs
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from CompressorDecompressor import CompressorDecompressor
 from key_manager import derive_key_argon2
-
-
-# secure helpers
-def _to_bytearray(b):
-    return bytearray(b) if b is not None else bytearray()
-
-
-def secure_erase(barr):
-    if barr is None:
-        return
-    if not isinstance(barr, (bytearray, memoryview)):
-        try:
-            barr = bytearray(barr)
-        except Exception:
-            return
-    try:
-        for i in range(len(barr)):
-            barr[i] = 0
-    except Exception:
-        pass
+from utils import _to_bytearray, secure_erase, derive_aes_key
 
 
 class MLKEMCrypto:
@@ -37,20 +16,8 @@ class MLKEMCrypto:
         self.kem_algorithm = kem_algorithm
         self.compobj = CompressorDecompressor()
 
-    def _derive_aes_key(self, shared_secret: bytes, salt: bytes) -> bytes:
-        aes_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            info=b'mlkem-aes-gcm-v1'
-        ).derive(shared_secret)
-        return aes_key
-
     def encrypt_data_for_recipient(self, infile, recipient_public_key: bytes) -> dict:
         """Encapsulate to recipient public key and encrypt plaintext with AESGCM."""
-        # if isinstance(plaintext, str):
-        #     plaintext = plaintext.encode('utf-8')
-
         salt = secrets.token_bytes(32)
         nonce = secrets.token_bytes(12)
 
@@ -58,7 +25,7 @@ class MLKEMCrypto:
             ciphertext, shared_secret = kem.encap_secret(recipient_public_key)
 
         try:
-            aes_key = self._derive_aes_key(shared_secret, salt)
+            aes_key = derive_aes_key(shared_secret, salt)
         finally:
             secure_erase(_to_bytearray(shared_secret))
 
