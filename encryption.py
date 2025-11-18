@@ -3,16 +3,13 @@ import json
 import secrets
 from datetime import datetime
 
-
 import oqs
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-import  zstandard as zstd
 
+from CompressorDecompressor import CompressorDecompressor
 from key_manager import derive_key_argon2
-from CompressorDecompressor import  CompressorDecompressor
-
 
 
 # secure helpers
@@ -51,7 +48,6 @@ class MLKEMCrypto:
 
     def encrypt_data_for_recipient(self, infile, recipient_public_key: bytes) -> dict:
         """Encapsulate to recipient public key and encrypt plaintext with AESGCM."""
-        print("Encrypting data... ")
         # if isinstance(plaintext, str):
         #     plaintext = plaintext.encode('utf-8')
 
@@ -69,7 +65,7 @@ class MLKEMCrypto:
         try:
             aesgcm = AESGCM(aes_key)
             compressed_plaintext = self.compobj.compress_file(infile)
-
+            print("Encrypting data... ")
             encrypted = aesgcm.encrypt(nonce, compressed_plaintext, associated_data=None)
         finally:
             secure_erase(_to_bytearray(aes_key))
@@ -88,14 +84,15 @@ class MLKEMCrypto:
     def encrypt_data_for_self(self, plaintext: bytes, own_public_key: bytes) -> dict:
         return self.encrypt_data_for_recipient(plaintext, own_public_key)
 
-    def reencrypt_data(self,data: dict, key: bytes):
+    def reencrypt_data(self, data: dict, key: bytes):
         """Re-encrypt data using symmetric key encryption (AESGCM)."""
+        print("Re-encrypting data... ")
         nonce = secrets.token_bytes(12)
         key_bytes = base64.b64encode(key).decode("utf-8")
         aes_key = derive_key_argon2(key_bytes, nonce, 32)
         aesgcm = AESGCM(aes_key)
         data_bytes = json.dumps(data).encode('utf-8')
-        # compressed_data_bytes = self.compobj.compress_data(data_bytes)
-        cipher_text = aesgcm.encrypt(nonce, data_bytes, associated_data=None)
+        compressed_data_bytes = self.compobj.compress_data(data_bytes)
+        cipher_text = aesgcm.encrypt(nonce, compressed_data_bytes, associated_data=None)
         enc_data = cipher_text[:5] + nonce + cipher_text[5:]
         return enc_data
