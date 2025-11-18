@@ -4,6 +4,7 @@ from pathlib import Path
 
 import oqs
 
+from CompressorDecompressor import CompressorDecompressor
 from decryption import MLKEMDecryptor
 from encryption import MLKEMCrypto
 from key_manager import KeyManager
@@ -33,6 +34,7 @@ class InteractiveApp:
         self.km = KeyManager()
         self.crypto = MLKEMCrypto()
         self.decryptor = MLKEMDecryptor()
+        self.compobj = CompressorDecompressor()
 
     def clear(self):
         import os
@@ -251,9 +253,12 @@ class InteractiveApp:
         outfile = input("Output filename (default: <infile>_decrypted): ").strip()
         if not outfile:
             outfile = infile.replace(".enc", "") + "_decrypted"
-        with open(outfile, "wb") as f:
-            print("Writing decrypted file...")
-            f.write(plaintext)
+
+        self.compobj.decompress_data_to_file(plaintext, outfile)
+
+        # with open(outfile, "wb") as f:
+        #     print("Writing decrypted file...")
+        #     f.write(plaintext)
         print("Decrypted ->", outfile)
         self.pause()
 

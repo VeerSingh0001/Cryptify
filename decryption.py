@@ -62,10 +62,10 @@ class MLKEMDecryptor:
         try:
             aesgcm = AESGCM(aes_key)
             plaintext = aesgcm.decrypt(nonce, enc, associated_data=None)
-            print(plaintext)
-            decompressed_plaintext = self.compobj.decompress_data(plaintext)
-            print(decompressed_plaintext)
-            return decompressed_plaintext
+            # print(plaintext)
+            # decompressed_plaintext = self.compobj.decompress_data(plaintext)
+            # print(decompressed_plaintext)
+            return plaintext
         finally:
             secure_erase(_to_bytearray(aes_key))
 
