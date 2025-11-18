@@ -1,5 +1,4 @@
 import getpass
-import json
 import sys
 from pathlib import Path
 
@@ -217,14 +216,15 @@ class InteractiveApp:
             print("Input file not found.")
             self.pause()
             return
-        data = open(infile, "rb").read()
-        pkg = self.crypto.encrypt_data_for_recipient(data, public_key)
+        # data = open(infile, "rb").read()
+        pkg = self.crypto.encrypt_data_for_recipient(infile, public_key)
         pkg['recipient'] = name
+        enc_data = self.crypto.reencrypt_data(data=pkg, key=public_key)
         outfile = input("Output (default: <infile>.enc): ").strip()
         if not outfile:
             outfile = infile + ".enc"
-        with open(outfile, "w") as f:
-            json.dump(pkg, f, indent=2)
+        with open(outfile, "wb") as f:
+            f.write(enc_data)
         print("Encrypted for", name, "->", outfile)
         self.pause()
 
@@ -237,12 +237,12 @@ class InteractiveApp:
         kid = input("Your Key ID: ").strip()
         pwd = getpass.getpass("Password: ")
         try:
-            _, secret_key = self.km.load_keypair(kid, pwd)
+            public_key, secret_key = self.km.load_keypair(kid, pwd)
         except Exception as e:
             print("Load keypair failed:", e)
             self.pause()
             return
-        pkg = json.load(open(infile))
+        pkg = self.decryptor.decrypt_file(infile, public_key)
         try:
             plaintext = self.decryptor.decrypt_package(pkg, secret_key)
         finally:
@@ -252,6 +252,7 @@ class InteractiveApp:
         if not outfile:
             outfile = infile.replace(".enc", "") + "_decrypted"
         with open(outfile, "wb") as f:
+            print("Writing decrypted file...")
             f.write(plaintext)
         print("Decrypted ->", outfile)
         self.pause()
