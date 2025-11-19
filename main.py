@@ -232,9 +232,9 @@ class InteractiveApp:
         finally:
             secure_erase(_to_bytearray(secret_key))
 
-        outfile = input("Output filename (default: <infile>_decrypted): ").strip()
+        outfile = input("Output filename (default: <infile>: ").strip()
         if not outfile:
-            outfile = infile.replace(".enc", "") + "_decrypted"
+            outfile = infile.replace(".enc", "")
 
         self.compobj.decompress_data_to_file(plaintext, outfile)
 
