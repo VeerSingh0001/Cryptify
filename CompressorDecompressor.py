@@ -23,7 +23,7 @@ class CompressorDecompressor:
             Compressed data as bytes
         """
         print("Compressing file...")
-        compressor = zstd.ZstdCompressor(level=5, threads=-1)
+        compressor = zstd.ZstdCompressor(level=1, threads=-1)
         compobj = compressor.compressobj()
         result = bytearray()
         
@@ -50,7 +50,7 @@ class CompressorDecompressor:
             Compressed data as bytes
         """
         print("Compressing data...")
-        compressor = zstd.ZstdCompressor(level=7, threads=-1)
+        compressor = zstd.ZstdCompressor(level=1, threads=-1)
         compobj = compressor.compressobj()
         result = bytearray()
         result.extend(compobj.compress(data))

@@ -165,15 +165,15 @@ class InteractiveApp:
             print("Load keypair failed:", e)
             self.pause()
             return
-
+        outfile = input("Output (default: <infile>.enc): ").strip()
+        if not outfile:
+            outfile = infile + ".enc"
         # data = open(infile, "rb").read()
         pkg = self.crypto.encrypt_data_for_self(infile, public_key)
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
-        enc_data = self.crypto.reencrypt_data(data=pkg, key=public_key)
-        outfile = input("Output (default: <infile>.enc): ").strip()
-        if not outfile:
-            outfile = infile + ".enc"
+        enc_data =self.crypto.reencrypt_data(data=pkg, key=public_key)
+
         with open(outfile, "wb") as f:
             f.write(enc_data)
         print("Encrypted file saved to:", outfile)
@@ -200,15 +200,16 @@ class InteractiveApp:
             print("Input file not found.")
             self.pause()
             return
-        # data = open(infile, "rb").read()
-        pkg = self.crypto.encrypt_data_for_recipient(infile, public_key)
-        pkg['recipient'] = name
-        enc_data = self.crypto.reencrypt_data(data=pkg, key=public_key)
         outfile = input("Output (default: <infile>.enc): ").strip()
         if not outfile:
             outfile = infile + ".enc"
-        with open(outfile, "wb") as f:
-            f.write(enc_data)
+        # data = open(infile, "rb").read()
+        pkg = self.crypto.encrypt_data_for_recipient(infile, public_key)
+        pkg['recipient'] = name
+        self.crypto.reencrypt_data(data=pkg, key=public_key)
+
+        # with open(outfile, "wb") as f:
+        #     f.write(enc_data)
         print("Encrypted for", name, "->", outfile)
         self.pause()
 
@@ -226,15 +227,16 @@ class InteractiveApp:
             print("Load keypair failed:", e)
             self.pause()
             return
+        outfile = input("Output filename (default: <infile>: ").strip()
+        if not outfile:
+            outfile = infile.replace(".enc", "")
         pkg = self.decryptor.decrypt_file(infile, public_key)
         try:
             plaintext = self.decryptor.decrypt_package(pkg, secret_key)
         finally:
             secure_erase(_to_bytearray(secret_key))
 
-        outfile = input("Output filename (default: <infile>: ").strip()
-        if not outfile:
-            outfile = infile.replace(".enc", "")
+
 
         self.compobj.decompress_data_to_file(plaintext, outfile)
 
