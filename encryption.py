@@ -59,7 +59,7 @@ class MLKEMCrypto:
         aes_key = derive_key_argon2(key_bytes, nonce, 32)
         aesgcm = AESGCM(aes_key)
         data_bytes = json.dumps(data).encode('utf-8')
-        compressed_data_bytes = self.compobj.compress_data(data_bytes)
-        cipher_text = aesgcm.encrypt(nonce, compressed_data_bytes, associated_data=None)
+        # compressed_data_bytes = self.compobj.compress_data(data_bytes)
+        cipher_text = aesgcm.encrypt(nonce, data_bytes, associated_data=None)
         enc_data = cipher_text[:5] + nonce + cipher_text[5:]
         return enc_data
