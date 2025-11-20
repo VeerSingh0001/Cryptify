@@ -18,14 +18,17 @@ class InteractiveApp:
         self.decryptor = MLKEMDecryptor()
         self.compobj = CompressorDecompressor()
 
-    def clear(self):
+    @staticmethod
+    def clear():
         import os
         os.system('clear' if os.name != 'nt' else 'cls')
 
-    def pause(self):
+    @staticmethod
+    def pause():
         input("\nPress Enter to continue...")
 
-    def print_header(self):
+    @staticmethod
+    def print_header():
         print("\n" + "=" * 60)
         print("      ML-KEM ENCRYPTION TOOL - Secure Modular Version")
         print("=" * 60 + "\n")
@@ -172,10 +175,10 @@ class InteractiveApp:
         pkg = self.crypto.encrypt_data_for_self(infile, public_key)
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
-        enc_data =self.crypto.reencrypt_data(data=pkg, key=public_key)
+        self.crypto.reencrypt_data(data=pkg, key=public_key,outfile=outfile)
 
-        with open(outfile, "wb") as f:
-            f.write(enc_data)
+        # with open(outfile, "wb") as f:
+        #     f.write(enc_data)
         print("Encrypted file saved to:", outfile)
         self.pause()
 
@@ -206,10 +209,8 @@ class InteractiveApp:
         # data = open(infile, "rb").read()
         pkg = self.crypto.encrypt_data_for_recipient(infile, public_key)
         pkg['recipient'] = name
-        self.crypto.reencrypt_data(data=pkg, key=public_key)
+        self.crypto.reencrypt_data(data=pkg, key=public_key,outfile=outfile)
 
-        # with open(outfile, "wb") as f:
-        #     f.write(enc_data)
         print("Encrypted for", name, "->", outfile)
         self.pause()
 

@@ -22,12 +22,12 @@ def secure_erase(barr):
     if not isinstance(barr, (bytearray, memoryview)):
         try:
             barr = bytearray(barr)
-        except Exception:
+        except None:
             return
     try:
         for i in range(len(barr)):
             barr[i] = 0
-    except Exception:
+    except None:
         pass
 
 

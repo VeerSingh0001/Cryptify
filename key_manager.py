@@ -17,7 +17,7 @@ try:
     from argon2.low_level import hash_secret_raw, Type as Argon2Type
 
     ARGON2_AVAILABLE = True
-except Exception:
+except Exception as e:
     ARGON2_AVAILABLE = False
 
 
@@ -54,8 +54,7 @@ def derive_key(password: str, salt: bytes, length: int = 32) -> bytes:
     if ARGON2_AVAILABLE:
         try:
             return derive_key_argon2(password, salt, length)
-        except Exception:
-            # fallback
+        except None:
             pass
     return derive_key_pbkdf2(password, salt, length)
 
@@ -70,7 +69,8 @@ class KeyManager:
         self.pubkey_dir = self.storage_path / "public_keys"
         self.pubkey_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
-    def _atomic_write(self, dest: Path, data: dict):
+    @staticmethod
+    def _atomic_write(dest: Path, data: dict):
         tmp = dest.with_suffix(".tmp")
         with open(tmp, "w") as f:
             json.dump(data, f, indent=2)
@@ -96,7 +96,7 @@ class KeyManager:
         key_data = {
             "version": "1.2",
             "key_type": "keypair",
-            "created": datetime.utcnow().isoformat(),
+            "created": datetime.now().isoformat(),
             "public_key": base64.b64encode(public_key).decode('utf-8'),
             "encrypted_secret_key": base64.b64encode(encrypted_secret).decode('utf-8'),
             "salt": base64.b64encode(salt).decode('utf-8'),
@@ -110,7 +110,7 @@ class KeyManager:
         return str(key_file)
 
     def load_keypair(self, key_id: str, password: str):
-        """Return (public_key, secret_key) bytes. Caller should minimize lifetime of secret_key."""
+        """Return (public_key, secret_key) bytes. Caller should minimize the lifetime of secret_key."""
         key_file = self.storage_path / f"{key_id}.json"
         if not key_file.exists():
             raise FileNotFoundError(f"Key '{key_id}' not found")
@@ -127,9 +127,9 @@ class KeyManager:
         try:
             aesgcm = AESGCM(derived)
             secret_key = aesgcm.decrypt(nonce, enc_secret, associated_data=None)
-        except Exception as e:
+        except Exception as ex:
             secure_erase(_to_bytearray(derived))
-            raise ValueError("Wrong password or corrupted key file") from e
+            raise ValueError("Wrong password or corrupted key file") from ex
         finally:
             secure_erase(_to_bytearray(derived))
 
@@ -142,7 +142,7 @@ class KeyManager:
             "version": "1.0",
             "key_type": "public_only",
             "key_id": key_id,
-            "exported": datetime.utcnow().isoformat(),
+            "exported": datetime.now().isoformat(),
             "public_key": base64.b64encode(public_key).decode('utf-8'),
             "algorithm": "Kyber768"
         }
@@ -179,7 +179,7 @@ class KeyManager:
                     d = json.load(f)
                 if d.get('key_type') == 'keypair':
                     result.append({"id": k.stem, "created": d.get('created', 'Unknown')})
-            except Exception:
+            except None:
                 continue
         return result
 
@@ -190,7 +190,7 @@ class KeyManager:
                 with open(k, "r") as f:
                     d = json.load(f)
                 result.append({"recipient": k.stem, "exported": d.get('exported', 'Unknown')})
-            except Exception:
+            except None:
                 continue
         return result
 
@@ -198,11 +198,11 @@ class KeyManager:
         """Delete your keypair (public stub + secret in OS or JSON)."""
         key_file = self.storage_path / f"{key_id}.json"
 
-        # If OS key vault used
-        try:
-            keyring.delete_password(self.SERVICE_NAME, key_id)
-        except Exception:
-            pass
+        # # If OS key vault used
+        # try:
+        #     keyring.delete_password(self.SERVICE_NAME, key_id)
+        # except Exception:
+        #     pass
 
         # Remove JSON file
         if key_file.exists():

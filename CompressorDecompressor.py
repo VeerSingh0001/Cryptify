@@ -1,3 +1,4 @@
+import os
 import zstandard as zstd
 
 
@@ -10,54 +11,42 @@ class CompressorDecompressor:
             chunk_size: Size of chunks for streaming operations (default 4MB)
         """
         self.CHUNK = chunk_size
-        self.compressor = zstd.ZstdCompressor(level=1, threads=-1)
-        self.decompressor = zstd.ZstdDecompressor()
-        self.compobj = self.compressor.compressobj()
-        self.decompobj = self.decompressor.decompressobj()
 
-    def compress_file(self, infile):
+
+    def compress_file(self, infile,temp):
         """
         Compress file with efficient streaming to memory.
         Uses bytearray for better allocation strategy than repeated string concatenation.
         
         Args:
             infile: Path to input file
-            
+            temp: Path to temp directory
+
         Returns:
             Compressed data as bytes
         """
         print("Compressing file...")
+        compressor = zstd.ZstdCompressor(level=1, threads=-1)
+        compobj = compressor.compressobj()
 
-        result = bytearray()
-        
-        with open(infile, 'rb') as fh:
+        filename = os.path.basename(infile)
+
+        with open(infile, 'rb') as src, open(f"{temp}/{filename}", "wb") as dst:
             while True:
-                chunk = fh.read(self.CHUNK)
+                chunk = src.read(self.CHUNK)
                 if not chunk:
                     break
-                # Extend bytearray instead of bytes concatenation
-                result.extend(self.compobj.compress(chunk))
-        
-        result.extend(self.compobj.flush())
-        return bytes(result)
 
-    def compress_data(self,data):
-        """
-        Compress data in-memory with optimized level for speed.
-        
-        Args:
-            data: Data to compress (bytes)
-            
-        Returns:
-            Compressed data as bytes
-        """
-        print("Compressing data...")
-        result = bytearray()
-        result.extend(self.compobj.compress(data))
-        result.extend(self.compobj.flush())
-        return bytes(result)
+                out = compobj.compress(chunk)
+                if out:
+                    dst.write(out)
 
-    def decompress_data(self,data):
+            tail = compobj.flush()
+            if tail:
+                dst.write(tail)
+
+    @staticmethod
+    def decompress_data(data):
         """
         Decompress data in-memory.
         
@@ -69,9 +58,11 @@ class CompressorDecompressor:
         """
         print("Decompressing data...")
 
+        decompressor = zstd.ZstdDecompressor()
+        decompobj = decompressor.decompressobj()
         result = bytearray()
-        result.extend(self.decompobj.decompress(data))
-        result.extend(self.decompobj.flush())
+        result.extend(decompobj.decompress(data))
+        result.extend(decompobj.flush())
         return bytes(result)
 
     def decompress_data_to_file(self, data, outfile):
@@ -83,7 +74,8 @@ class CompressorDecompressor:
             outfile: Path to output file
         """
         print("Decompressing data to file...")
-
+        decompressor = zstd.ZstdDecompressor()
+        decompobj = decompressor.decompressobj()
         with open(outfile, "wb") as f:
             offset = 0
             total = len(data)
@@ -92,11 +84,11 @@ class CompressorDecompressor:
                 chunk = data[offset: offset + self.CHUNK]
                 offset += self.CHUNK
 
-                out = self.decompobj.decompress(chunk)
+                out = decompobj.decompress(chunk)
                 if out:
                     f.write(out)
 
-            tail = self.decompobj.flush()
+            tail = decompobj.flush()
             if tail:
                 f.write(tail)
 
