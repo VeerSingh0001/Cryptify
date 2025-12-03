@@ -1,7 +1,7 @@
 import base64
 import json
-import os
 import secrets
+import struct
 from datetime import datetime
 
 import oqs
@@ -16,13 +16,12 @@ class MLKEMCrypto:
     def __init__(self, kem_algorithm: str = "Kyber768"):
         self.kem_algorithm = kem_algorithm
         self.compobj = CompressorDecompressor()
-        self.TEMP = "/tmp"
-        self.CHUNK = 1*1024*1024
+        self.CHUNK_SIZE = 16 * 1024 * 1024   # 16 MB per chunk
 
     def encrypt_data_for_recipient(self, infile, recipient_public_key: bytes) -> dict:
         """Encapsulate to recipient public key and encrypt plaintext with AESGCM."""
         salt = secrets.token_bytes(32)
-        nonce = secrets.token_bytes(12)
+        nonce_prefix = secrets.token_bytes(12)
 
         with oqs.KeyEncapsulation(self.kem_algorithm) as kem:
             ciphertext, shared_secret = kem.encap_secret(recipient_public_key)
@@ -34,44 +33,61 @@ class MLKEMCrypto:
 
         try:
             aesgcm = AESGCM(aes_key)
-            self.compobj.compress_file(infile,self.TEMP)
-            encrypted = bytearray()
+            compressed_plaintext = self.compobj.compress_file(infile)
             print("Encrypting data... ")
-            temp_file = f"{self.TEMP}/{os.path.basename(infile)}"
-            with open(temp_file,"rb") as src:
-                while True:
-                    temp_data = src.read(self.CHUNK)
-                    if not temp_data:
-                        break
-                    encrypted_chunk = aesgcm.encrypt(nonce, temp_data, associated_data=None)
-                    encrypted.extend(encrypted_chunk)
+            encrypted = bytearray()
+            encrypted.extend(nonce_prefix)
+            encrypted.extend(struct.pack(">I",self.CHUNK_SIZE))
+            chunk_index = 0
+            offset = 0
+            data_len = len(compressed_plaintext)
+            while offset<data_len:
+                chunk = compressed_plaintext[offset:offset+self.CHUNK_SIZE]
+                nonce = nonce_prefix + struct.pack(">I",chunk_index)
+
+                encrypted_chunk = aesgcm.encrypt(nonce, chunk, associated_data=None)
+                encrypted.extend(struct.pack(">I",len(encrypted_chunk)))
+                encrypted.extend(encrypted_chunk)
+
+                chunk_index += 1
+                offset += self.CHUNK_SIZE
         finally:
             secure_erase(_to_bytearray(aes_key))
 
         pkg = {
             "encrypted_data": base64.b64encode(encrypted).decode('utf-8'),
             "ciphertext": base64.b64encode(ciphertext).decode('utf-8'),
-            "nonce": base64.b64encode(nonce).decode('utf-8'),
+            "nonce": base64.b64encode(nonce_prefix).decode('utf-8'),
             "salt": base64.b64encode(salt).decode('utf-8'),
             "algorithm": self.kem_algorithm,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.utcnow().isoformat()
         }
-        print(pkg["timestamp"])
         return pkg
 
     # Convenience function: same as encrypt_data_for_recipient but name kept for semantics
-    def encrypt_data_for_self(self, infile, own_public_key: bytes) -> dict:
-        return self.encrypt_data_for_recipient(infile, own_public_key)
+    def encrypt_data_for_self(self, plaintext: bytes, own_public_key: bytes) -> dict:
+        return self.encrypt_data_for_recipient(plaintext, own_public_key)
 
-    def reencrypt_data(self, data: dict, key: bytes,outfile):
+    def reencrypt_data(self, data: dict, key: bytes,outfile:str):
         """Re-encrypt data using symmetric key encryption (AESGCM)."""
         print("Re-encrypting data... ")
-        nonce = secrets.token_bytes(12)
+        nonce_prefix = secrets.token_bytes(12)
         key_bytes = base64.b64encode(key).decode("utf-8")
-        aes_key = derive_key_argon2(key_bytes, nonce, 32)
+        aes_key = derive_key_argon2(key_bytes, nonce_prefix, 32)
         aesgcm = AESGCM(aes_key)
         data_bytes = json.dumps(data).encode('utf-8')
-        compressed_data_bytes = self.compobj.compress_data(data_bytes)
-        cipher_text = aesgcm.encrypt(nonce, compressed_data_bytes, associated_data=None)
-        enc_data = cipher_text[:5] + nonce + cipher_text[5:]
-        return enc_data
+        with open(outfile, "wb") as fout:
+            fout.write(nonce_prefix)
+            fout.write(struct.pack(">I",self.CHUNK_SIZE))
+            chunk_index = 0
+            offset = 0
+            data_len = len(data_bytes)
+            while offset<data_len:
+                chunk = data_bytes[offset:offset+self.CHUNK_SIZE]
+                nonce = nonce_prefix + struct.pack(">I",chunk_index)
+                cipher_text = aesgcm.encrypt(nonce, chunk, associated_data=None)
+
+                fout.write(struct.pack(">I",len(cipher_text)))
+                fout.write(cipher_text)
+                chunk_index += 1
+                offset += self.CHUNK_SIZE

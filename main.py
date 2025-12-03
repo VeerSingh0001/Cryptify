@@ -171,14 +171,10 @@ class InteractiveApp:
         outfile = input("Output (default: <infile>.enc): ").strip()
         if not outfile:
             outfile = infile + ".enc"
-        # data = open(infile, "rb").read()
         pkg = self.crypto.encrypt_data_for_self(infile, public_key)
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
         self.crypto.reencrypt_data(data=pkg, key=public_key,outfile=outfile)
-
-        # with open(outfile, "wb") as f:
-        #     f.write(enc_data)
         print("Encrypted file saved to:", outfile)
         self.pause()
 
@@ -206,7 +202,6 @@ class InteractiveApp:
         outfile = input("Output (default: <infile>.enc): ").strip()
         if not outfile:
             outfile = infile + ".enc"
-        # data = open(infile, "rb").read()
         pkg = self.crypto.encrypt_data_for_recipient(infile, public_key)
         pkg['recipient'] = name
         self.crypto.reencrypt_data(data=pkg, key=public_key,outfile=outfile)
