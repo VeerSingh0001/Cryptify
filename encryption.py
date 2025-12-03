@@ -71,17 +71,7 @@ class MLKEMCrypto:
         aes_key = derive_key_argon2(key_bytes, nonce, 32)
         aesgcm = AESGCM(aes_key)
         data_bytes = json.dumps(data).encode('utf-8')
-        # compressed_data_bytes = self.compobj.compress_data(data_bytes)
-        with open(outfile,"wb") as f:
-            offset = 0
-            total = len(data_bytes)
-            while offset < total:
-                chunk = data_bytes[offset:offset+self.CHUNK]
-                offset += self.CHUNK
-                cipher_chunk = aesgcm.encrypt(nonce, chunk, associated_data=None)
-                f.write(cipher_chunk)
-            f.write(nonce)
-
-        # cipher_text = aesgcm.encrypt(nonce, data_bytes, associated_data=None)
-        # enc_data = cipher_text[:5] + nonce + cipher_text[5:]
-        # return enc_data
+        compressed_data_bytes = self.compobj.compress_data(data_bytes)
+        cipher_text = aesgcm.encrypt(nonce, compressed_data_bytes, associated_data=None)
+        enc_data = cipher_text[:5] + nonce + cipher_text[5:]
+        return enc_data
