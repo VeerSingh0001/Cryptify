@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import secrets
 import struct
 from datetime import datetime
@@ -18,7 +19,7 @@ class MLKEMCrypto:
         self.compobj = CompressorDecompressor()
         self.CHUNK_SIZE = 16 * 1024 * 1024  # 16 MB per chunk
 
-    def encrypt_data_for_recipient(self, infile,outfile, recipient_public_key: bytes) -> dict:
+    def encrypt_data_for_recipient(self, infile, outfile, recipient_public_key: bytes) -> dict:
         """Encapsulate to recipient public key and encrypt plaintext with AESGCM."""
         salt = secrets.token_bytes(32)
         nonce_prefix = secrets.token_bytes(12)
@@ -31,50 +32,42 @@ class MLKEMCrypto:
         finally:
             secure_erase(_to_bytearray(shared_secret))
 
+        # Compress file and get temp file path
+        compressed_temp_file = self.compobj.compress_file(infile)
+
         try:
             aesgcm = AESGCM(aes_key)
-            compressed_plaintext = self.compobj.compress_file(infile)
-            print("Encrypting data... ")
+            print("Encrypting data...")
+
             with open(outfile, 'wb') as fout:
                 fout.write(nonce_prefix)
                 fout.write(struct.pack(">I", self.CHUNK_SIZE))
 
                 chunk_index = 0
-                offset = 0
-                data_len = len(compressed_plaintext)
 
-                while offset < data_len:
-                    chunk = compressed_plaintext[offset:offset + self.CHUNK_SIZE]
-                    nonce = nonce_prefix + struct.pack(">I", chunk_index)
+                # Read from compressed temp file
+                with open(compressed_temp_file, 'rb') as fin:
+                    while True:
+                        chunk = fin.read(self.CHUNK_SIZE)
+                        if not chunk:
+                            break  # End of file
 
-                    encrypted_chunk = aesgcm.encrypt(nonce, chunk, associated_data=None)
-                    fout.write(struct.pack(">I", len(encrypted_chunk)))
-                    fout.write(encrypted_chunk)
+                        nonce = nonce_prefix + struct.pack(">I", chunk_index)
+                        encrypted_chunk = aesgcm.encrypt(nonce, chunk, associated_data=None)
 
-                    chunk_index += 1
-                    offset += self.CHUNK_SIZE
+                        fout.write(struct.pack(">I", len(encrypted_chunk)))
+                        fout.write(encrypted_chunk)
 
-            # encrypted = bytearray()
-            # encrypted.extend(nonce_prefix)
-            # encrypted.extend(struct.pack(">I", self.CHUNK_SIZE))
-            # chunk_index = 0
-            # offset = 0
-            # data_len = len(compressed_plaintext)
-            # while offset < data_len:
-            #     chunk = compressed_plaintext[offset:offset + self.CHUNK_SIZE]
-            #     nonce = nonce_prefix + struct.pack(">I", chunk_index)
-            #
-            #     encrypted_chunk = aesgcm.encrypt(nonce, chunk, associated_data=None)
-            #     encrypted.extend(struct.pack(">I", len(encrypted_chunk)))
-            #     encrypted.extend(encrypted_chunk)
-            #
-            #     chunk_index += 1
-            #     offset += self.CHUNK_SIZE
+                        chunk_index += 1
+
         finally:
             secure_erase(_to_bytearray(aes_key))
+            # Clean up compressed temp file
+            if os.path.exists(compressed_temp_file):
+                os.unlink(compressed_temp_file)
+                print(f"Compressed temp file cleaned up: {compressed_temp_file}")
 
         pkg = {
-            # "encrypted_data": base64.b64encode(encrypted).decode('utf-8'),
             "ciphertext": base64.b64encode(ciphertext).decode('utf-8'),
             "nonce": base64.b64encode(nonce_prefix).decode('utf-8'),
             "salt": base64.b64encode(salt).decode('utf-8'),
@@ -84,7 +77,7 @@ class MLKEMCrypto:
         return pkg
 
     # Convenience function: same as encrypt_data_for_recipient but name kept for semantics
-    def encrypt_data_for_self(self, plaintext: bytes, outfile,own_public_key: bytes) -> dict:
+    def encrypt_data_for_self(self, plaintext, outfile,own_public_key: bytes) -> dict:
         return self.encrypt_data_for_recipient(plaintext, outfile,own_public_key)
 
     def reencrypt_data(self, data: dict, key: bytes, outfile: str):
@@ -96,7 +89,7 @@ class MLKEMCrypto:
         aesgcm = AESGCM(aes_key)
         data_bytes = json.dumps(data).encode('utf-8')
 
-        # Track where metadata section starts
+        # Track where the metadata section starts
         with open(outfile, "rb") as f:
             f.seek(0, 2)  # Seek to end
             metadata_start_position = f.tell()
@@ -127,21 +120,3 @@ class MLKEMCrypto:
 
             # Write metadata start position at the very end (8 bytes for large files)
             fout.write(struct.pack(">Q", metadata_start_position))
-
-        # print(f"Metadata encrypted and appended to {outfile}")
-
-        # with open(outfile, "ab") as fout:
-        #     fout.write(nonce_prefix)
-        #     fout.write(struct.pack(">I", self.CHUNK_SIZE))
-        #     chunk_index = 0
-        #     offset = 0
-        #     data_len = len(data_bytes)
-        #     while offset < data_len:
-        #         chunk = data_bytes[offset:offset + self.CHUNK_SIZE]
-        #         nonce = nonce_prefix + struct.pack(">I", chunk_index)
-        #         cipher_text = aesgcm.encrypt(nonce, chunk, associated_data=None)
-        #
-        #         fout.write(struct.pack(">I", len(cipher_text)))
-        #         fout.write(cipher_text)
-        #         chunk_index += 1
-        #         offset += self.CHUNK_SIZE

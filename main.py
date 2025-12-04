@@ -228,15 +228,9 @@ class InteractiveApp:
             outfile = infile.replace(".enc", "")
         pkg = self.decryptor.decrypt_file(infile, public_key)
         try:
-            plaintext = self.decryptor.decrypt_package(pkg, infile,outfile,secret_key)
+            self.decryptor.decrypt_package(pkg, infile,outfile,secret_key)
         finally:
             secure_erase(_to_bytearray(secret_key))
-
-        # self.compobj.decompress_data_to_file(plaintext, outfile)
-
-        # with open(outfile, "wb") as f:
-        #     print("Writing decrypted file...")
-        #     f.write(plaintext)
         print("Decrypted ->", outfile)
         self.pause()
 

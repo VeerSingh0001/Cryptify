@@ -1,3 +1,5 @@
+import os
+
 import zstandard as zstd
 
 
@@ -12,18 +14,21 @@ class CompressorDecompressor:
         self.CHUNK = chunk_size
 
     @staticmethod
-    def compress_file(infile):
+    def compress_file(infile: str) -> str:
         """
         Compress file efficiently for any size.
         Works with both small (KB) and large (GB+) files.
+        Writes compressed data directly to a temp file.
 
         Args:
             infile: Path to input file
 
         Returns:
-            Compressed data as bytes
+            Path to the temporary file containing compressed data
         """
         print("Compressing file...")
+
+        import tempfile
 
         compressor = zstd.ZstdCompressor(
             level=1,
@@ -31,13 +36,23 @@ class CompressorDecompressor:
             write_content_size=True
         )
 
-        from io import BytesIO
-        output = BytesIO()
+        # Create temp file for compressed data
+        temp_fd, temp_filepath = tempfile.mkstemp(dir='/tmp', suffix='.zst')
+        # temp_fd, temp_filepath = tempfile.mkstemp(dir='/var/tmp', suffix='.zst')
+        try:
+            with open(infile, 'rb') as fin:
+                with os.fdopen(temp_fd, 'wb') as temp_file:
+                    # Stream compress directly from input file to temp file
+                    compressor.copy_stream(fin, temp_file)
 
-        with open(infile, 'rb') as fh:
-            compressor.copy_stream(fh, output)
+            print(f"Compressed data stored at: {temp_filepath}")
+            return temp_filepath
 
-        return output.getvalue()
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_filepath):
+                os.unlink(temp_filepath)
+            raise ValueError(f"Compression failed: {str(e)}")
 
     @staticmethod
     def decompress_data(infile: str, outfile: str):
@@ -60,28 +75,3 @@ class CompressorDecompressor:
                 decompressor.copy_stream(fin, fout)
 
         print(f"Data decompressed to: {outfile}")
-
-    # @staticmethod
-    # def decompress_data(data):
-    #     """
-    #     Decompress data in-memory.
-    #
-    #     Args:
-    #         data: Compressed data (bytes)
-    #
-    #     Returns:
-    #         Decompressed data as bytes
-    #     """
-    #     print("Decompressing data...")
-    #     decompressor = zstd.ZstdDecompressor()
-    #
-    #     from io import BytesIO
-    #
-    #     # Wrap input data in BytesIO for streaming
-    #     input_stream = BytesIO(data)
-    #     output = BytesIO()
-    #
-    #     # Use copy_stream for efficient decompression
-    #     decompressor.copy_stream(input_stream, output)
-    #
-    #     return output.getvalue()
