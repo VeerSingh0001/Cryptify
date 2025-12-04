@@ -140,6 +140,7 @@ class MLKEMDecryptor:
 
             while True:
                 # Read the ciphertext length (4 bytes)
+            # chunk_size = struct.unpack(">I", encrypted_data[offset:offset + 4])[0]
                 cipher_len_bytes = fin.read(4)
                 if len(cipher_len_bytes) == 0:
                     # End of file reached
