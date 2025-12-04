@@ -40,26 +40,48 @@ class CompressorDecompressor:
         return output.getvalue()
 
     @staticmethod
-    def decompress_data(data):
+    def decompress_data(infile: str, outfile: str):
         """
-        Decompress data in-memory.
+        Decompress data from input file directly into output file.
 
         Args:
-            data: Compressed data (bytes)
+            infile: Path to the compressed input file
+            outfile: Path to the output file for decompressed data
 
         Returns:
-            Decompressed data as bytes
+            None
         """
         print("Decompressing data...")
         decompressor = zstd.ZstdDecompressor()
 
-        from io import BytesIO
+        with open(infile, 'rb') as fin:
+            with open(outfile, 'wb') as fout:
+                # Use copy_stream for efficient streaming decompression
+                decompressor.copy_stream(fin, fout)
 
-        # Wrap input data in BytesIO for streaming
-        input_stream = BytesIO(data)
-        output = BytesIO()
+        print(f"Data decompressed to: {outfile}")
 
-        # Use copy_stream for efficient decompression
-        decompressor.copy_stream(input_stream, output)
-
-        return output.getvalue()
+    # @staticmethod
+    # def decompress_data(data):
+    #     """
+    #     Decompress data in-memory.
+    #
+    #     Args:
+    #         data: Compressed data (bytes)
+    #
+    #     Returns:
+    #         Decompressed data as bytes
+    #     """
+    #     print("Decompressing data...")
+    #     decompressor = zstd.ZstdDecompressor()
+    #
+    #     from io import BytesIO
+    #
+    #     # Wrap input data in BytesIO for streaming
+    #     input_stream = BytesIO(data)
+    #     output = BytesIO()
+    #
+    #     # Use copy_stream for efficient decompression
+    #     decompressor.copy_stream(input_stream, output)
+    #
+    #     return output.getvalue()
