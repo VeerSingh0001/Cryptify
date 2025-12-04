@@ -1,5 +1,3 @@
-import os
-
 import zstandard as zstd
 
 
@@ -41,7 +39,6 @@ class CompressorDecompressor:
 
         return output.getvalue()
 
-
     @staticmethod
     def decompress_data(data):
         """
@@ -55,37 +52,14 @@ class CompressorDecompressor:
         """
         print("Decompressing data...")
         decompressor = zstd.ZstdDecompressor()
-        decompobj = decompressor.decompressobj()
 
-        result = bytearray()
-        result.extend(decompobj.decompress(data))
-        result.extend(decompobj.flush())
-        return bytes(result)
+        from io import BytesIO
 
-    def decompress_data_to_file(self, data, outfile):
-        """
-        Decompress data to file with streaming to avoid high memory usage.
+        # Wrap input data in BytesIO for streaming
+        input_stream = BytesIO(data)
+        output = BytesIO()
 
-        Args:
-            data: Compressed data (bytes)
-            outfile: Path to output file
-        """
-        print("Decompressing data to file...")
-        decompressor = zstd.ZstdDecompressor()
-        decompobj = decompressor.decompressobj()
+        # Use copy_stream for efficient decompression
+        decompressor.copy_stream(input_stream, output)
 
-        with open(outfile, "wb") as f:
-            offset = 0
-            total = len(data)
-
-            while offset < total:
-                chunk = data[offset: offset + self.CHUNK]
-                offset += self.CHUNK
-
-                out = decompobj.decompress(chunk)
-                if out:
-                    f.write(out)
-
-            tail = decompobj.flush()
-            if tail:
-                f.write(tail)
+        return output.getvalue()

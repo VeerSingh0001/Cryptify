@@ -174,7 +174,7 @@ class InteractiveApp:
         pkg = self.crypto.encrypt_data_for_self(infile, public_key)
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
-        self.crypto.reencrypt_data(data=pkg, key=public_key,outfile=outfile)
+        self.crypto.reencrypt_data(data=pkg, key=public_key, outfile=outfile)
         print("Encrypted file saved to:", outfile)
         self.pause()
 
@@ -204,7 +204,7 @@ class InteractiveApp:
             outfile = infile + ".enc"
         pkg = self.crypto.encrypt_data_for_recipient(infile, public_key)
         pkg['recipient'] = name
-        self.crypto.reencrypt_data(data=pkg, key=public_key,outfile=outfile)
+        self.crypto.reencrypt_data(data=pkg, key=public_key, outfile=outfile)
 
         print("Encrypted for", name, "->", outfile)
         self.pause()
@@ -232,13 +232,11 @@ class InteractiveApp:
         finally:
             secure_erase(_to_bytearray(secret_key))
 
+        # self.compobj.decompress_data_to_file(plaintext, outfile)
 
-
-        self.compobj.decompress_data_to_file(plaintext, outfile)
-
-        # with open(outfile, "wb") as f:
-        #     print("Writing decrypted file...")
-        #     f.write(plaintext)
+        with open(outfile, "wb") as f:
+            print("Writing decrypted file...")
+            f.write(plaintext)
         print("Decrypted ->", outfile)
         self.pause()
 
