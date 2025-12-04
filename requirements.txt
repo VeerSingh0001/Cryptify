@@ -4,3 +4,4 @@ cryptography
 liboqs-python
 cffi
 oqs
+zstandard
