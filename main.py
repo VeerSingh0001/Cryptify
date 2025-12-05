@@ -172,7 +172,7 @@ class InteractiveApp:
         outfile = input("Output (default: <infile>.enc): ").strip()
         if not outfile:
             outfile = infile + ".enc"
-        pkg = self.crypto.encrypt_data_for_self(infile, outfile,public_key)
+        pkg = self.crypto.encrypt_data_for_self(infile, outfile, public_key)
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
         self.crypto.reencrypt_data(data=pkg, key=public_key, outfile=outfile)
@@ -230,7 +230,7 @@ class InteractiveApp:
             outfile = infile.replace(".enc", "")
         pkg = self.decryptor.decrypt_file(infile, public_key)
         try:
-            self.decryptor.decrypt_package(pkg, infile,outfile,secret_key)
+            self.decryptor.decrypt_package(pkg, infile, outfile, secret_key)
         finally:
             secure_erase(_to_bytearray(secret_key))
         print("Decrypted ->", outfile)

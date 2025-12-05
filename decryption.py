@@ -16,7 +16,7 @@ class MLKEMDecryptor:
         self.kem_algorithm = kem_algorithm
         self.compobj = CompressorDecompressor()
 
-    def decrypt_package(self, package: dict, infile,outfile,secret_key: bytes) -> bytes:
+    def decrypt_package(self, package: dict, infile, outfile, secret_key: bytes) -> bytes:
         print("Decrypting package...")
 
         # Step 1: Read metadata start position to know where encrypted data ends
@@ -98,7 +98,7 @@ class MLKEMDecryptor:
                             raise ValueError(f"Invalid encrypted data: incomplete chunk at index {chunk_index}")
                         encrypted_chunk_buffer.extend(encrypted_chunk)
 
-                        if len(encrypted_chunk_buffer) >= 64*1024*1024 or encrypted_chunk_buffer is not None:
+                        if len(encrypted_chunk_buffer) >= 64 * 1024 * 1024 or encrypted_chunk_buffer is not None:
                             # Reconstruct nonce for this chunk
                             nonce = nonce_prefix + struct.pack(">I", chunk_index)
 
@@ -116,7 +116,7 @@ class MLKEMDecryptor:
 
             # Step 5: Decompress the decrypted data from temp file
             try:
-                decompressed_plaintext = self.compobj.decompress_data(temp_filepath,outfile)
+                decompressed_plaintext = self.compobj.decompress_data(temp_filepath, outfile)
                 return decompressed_plaintext
             except Exception as e:
                 raise ValueError(f"Decompression failed: {str(e)}")
@@ -132,7 +132,6 @@ class MLKEMDecryptor:
             if os.path.exists(temp_filepath):
                 os.unlink(temp_filepath)
                 print(f"Temporary file cleaned up: {temp_filepath}")
-
 
     @staticmethod
     def decrypt_file(infile, key):

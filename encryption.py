@@ -39,20 +39,20 @@ class MLKEMCrypto:
             aesgcm = AESGCM(aes_key)
             print("Encrypting data...")
 
-            with open(outfile, 'wb') as fout:
+            with open(outfile, 'wb', buffering=64 * 1024 * 1024) as fout:
                 fout.write(nonce_prefix)
                 fout.write(struct.pack(">I", self.CHUNK_SIZE))
 
                 chunk_index = 0
                 chunk_buffer = bytearray()
                 # Read from compressed temp file
-                with open(compressed_temp_file, 'rb') as fin:
+                with open(compressed_temp_file, 'rb', buffering=16 * 1024 * 1024) as fin:
                     while True:
                         chunk = fin.read(self.CHUNK_SIZE)
                         if not chunk:
                             break  # End of file
                         chunk_buffer.extend(chunk)
-                        if len(chunk_buffer) > 64*1024*1024 or chunk_buffer is not None:
+                        if len(chunk_buffer) > 64 * 1024 * 1024 or chunk_buffer is not None:
                             nonce = nonce_prefix + struct.pack(">I", chunk_index)
                             encrypted_chunk = aesgcm.encrypt(nonce, chunk_buffer, associated_data=None)
 
@@ -74,13 +74,13 @@ class MLKEMCrypto:
             "nonce": base64.b64encode(nonce_prefix).decode('utf-8'),
             "salt": base64.b64encode(salt).decode('utf-8'),
             "algorithm": self.kem_algorithm,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now().isoformat()
         }
         return pkg
 
     # Convenience function: same as encrypt_data_for_recipient but name kept for semantics
-    def encrypt_data_for_self(self, plaintext, outfile,own_public_key: bytes) -> dict:
-        return self.encrypt_data_for_recipient(plaintext, outfile,own_public_key)
+    def encrypt_data_for_self(self, plaintext, outfile, own_public_key: bytes) -> dict:
+        return self.encrypt_data_for_recipient(plaintext, outfile, own_public_key)
 
     def reencrypt_data(self, data: dict, key: bytes, outfile: str):
         """Re-encrypt data using symmetric key encryption (AESGCM)."""
