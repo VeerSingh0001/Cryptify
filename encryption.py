@@ -44,21 +44,23 @@ class MLKEMCrypto:
                 fout.write(struct.pack(">I", self.CHUNK_SIZE))
 
                 chunk_index = 0
-
+                chunk_buffer = bytearray()
                 # Read from compressed temp file
                 with open(compressed_temp_file, 'rb') as fin:
                     while True:
                         chunk = fin.read(self.CHUNK_SIZE)
                         if not chunk:
                             break  # End of file
+                        chunk_buffer.extend(chunk)
+                        if len(chunk_buffer) > 64*1024*1024 or chunk_buffer is not None:
+                            nonce = nonce_prefix + struct.pack(">I", chunk_index)
+                            encrypted_chunk = aesgcm.encrypt(nonce, chunk_buffer, associated_data=None)
 
-                        nonce = nonce_prefix + struct.pack(">I", chunk_index)
-                        encrypted_chunk = aesgcm.encrypt(nonce, chunk, associated_data=None)
+                            fout.write(struct.pack(">I", len(encrypted_chunk)))
+                            fout.write(encrypted_chunk)
 
-                        fout.write(struct.pack(">I", len(encrypted_chunk)))
-                        fout.write(encrypted_chunk)
-
-                        chunk_index += 1
+                            chunk_index += 1
+                            chunk_buffer.clear()
 
         finally:
             secure_erase(_to_bytearray(aes_key))

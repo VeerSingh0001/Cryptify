@@ -56,7 +56,7 @@ class MLKEMDecryptor:
 
         # Step 4: Create temp file for decrypted data
         import tempfile
-        temp_fd, temp_filepath = tempfile.mkstemp(dir='/tmp', suffix='.dec')
+        temp_fd, temp_filepath = tempfile.mkstemp(dir='/var/tmp', suffix='.dec')
 
         try:
             aesgcm = AESGCM(aes_key)
@@ -78,7 +78,7 @@ class MLKEMDecryptor:
 
                 # Decrypt all chunks and write to temp file
                 chunk_index = 0
-
+                encrypted_chunk_buffer = bytearray()
                 with os.fdopen(temp_fd, 'wb') as temp_file:
                     while fin.tell() < metadata_start_position:
                         # Read encrypted chunk length (4 bytes)
@@ -96,18 +96,21 @@ class MLKEMDecryptor:
                         encrypted_chunk = fin.read(encrypted_chunk_len)
                         if len(encrypted_chunk) < encrypted_chunk_len:
                             raise ValueError(f"Invalid encrypted data: incomplete chunk at index {chunk_index}")
+                        encrypted_chunk_buffer.extend(encrypted_chunk)
 
-                        # Reconstruct nonce for this chunk
-                        nonce = nonce_prefix + struct.pack(">I", chunk_index)
+                        if len(encrypted_chunk_buffer) >= 64*1024*1024 or encrypted_chunk_buffer is not None:
+                            # Reconstruct nonce for this chunk
+                            nonce = nonce_prefix + struct.pack(">I", chunk_index)
 
-                        # Decrypt chunk
-                        try:
-                            decrypted_chunk = aesgcm.decrypt(nonce, encrypted_chunk, associated_data=None)
-                            temp_file.write(decrypted_chunk)
-                        except Exception as e:
-                            raise ValueError(f"Failed to decrypt chunk {chunk_index}: {str(e)}")
+                            # Decrypt chunk
+                            try:
+                                decrypted_chunk = aesgcm.decrypt(nonce, encrypted_chunk, associated_data=None)
+                                temp_file.write(decrypted_chunk)
+                            except Exception as e:
+                                raise ValueError(f"Failed to decrypt chunk {chunk_index}: {str(e)}")
 
-                        chunk_index += 1
+                            chunk_index += 1
+                            encrypted_chunk_buffer.clear()
 
             print(f"Decrypted data stored temporarily at: {temp_filepath}")
 

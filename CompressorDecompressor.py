@@ -18,7 +18,6 @@ class CompressorDecompressor:
     def compress_file(infile: str) -> str:
         """
         Compress file efficiently for any size.
-        Works with both small (KB) and large (GB+) files.
         Writes compressed data directly to a temp file.
 
         Args:
