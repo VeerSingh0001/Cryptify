@@ -1,3 +1,4 @@
+import gc
 import os
 
 import zstandard as zstd
@@ -37,14 +38,12 @@ class CompressorDecompressor:
         )
 
         # Create temp file for compressed data
-        temp_fd, temp_filepath = tempfile.mkstemp(dir='/tmp', suffix='.zst')
-        # temp_fd, temp_filepath = tempfile.mkstemp(dir='/var/tmp', suffix='.zst')
+        temp_fd, temp_filepath = tempfile.mkstemp(dir='/var/tmp', suffix='.zst')
         try:
             with open(infile, 'rb') as fin:
                 with os.fdopen(temp_fd, 'wb') as temp_file:
                     # Stream compress directly from input file to temp file
-                    compressor.copy_stream(fin, temp_file)
-
+                    compressor.copy_stream(fin, temp_file,read_size=32*1024*1024,write_size=64*1024*1024)
             print(f"Compressed data stored at: {temp_filepath}")
             return temp_filepath
 
@@ -53,6 +52,11 @@ class CompressorDecompressor:
             if os.path.exists(temp_filepath):
                 os.unlink(temp_filepath)
             raise ValueError(f"Compression failed: {str(e)}")
+        finally:
+            if compressor is not None:
+                del compressor
+            gc.collect()
+
 
     @staticmethod
     def decompress_data(infile: str, outfile: str):
@@ -68,10 +72,14 @@ class CompressorDecompressor:
         """
         print("Decompressing data...")
         decompressor = zstd.ZstdDecompressor()
-
-        with open(infile, 'rb') as fin:
-            with open(outfile, 'wb') as fout:
-                # Use copy_stream for efficient streaming decompression
-                decompressor.copy_stream(fin, fout)
+        try:
+            with open(infile, 'rb') as fin:
+                with open(outfile, 'wb') as fout:
+                    # Use copy_stream for efficient streaming decompression
+                    decompressor.copy_stream(fin, fout,read_size=32*1024*1024,write_size=64*1024*1024)
+        finally:
+            if decompressor is not None:
+                del decompressor
+                gc.collect()
 
         print(f"Data decompressed to: {outfile}")

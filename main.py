@@ -1,3 +1,4 @@
+import gc
 import getpass
 import sys
 from pathlib import Path
@@ -175,6 +176,7 @@ class InteractiveApp:
         pkg['recipient'] = 'self'
         pkg['for_key_id'] = kid
         self.crypto.reencrypt_data(data=pkg, key=public_key, outfile=outfile)
+        gc.collect()
         print("Encrypted file saved to:", outfile)
         self.pause()
 
@@ -205,7 +207,7 @@ class InteractiveApp:
         pkg = self.crypto.encrypt_data_for_recipient(infile, public_key)
         pkg['recipient'] = name
         self.crypto.reencrypt_data(data=pkg, key=public_key, outfile=outfile)
-
+        gc.collect()
         print("Encrypted for", name, "->", outfile)
         self.pause()
 
