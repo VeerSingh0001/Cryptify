@@ -7,6 +7,8 @@ import sys
 import os
 from pathlib import Path
 
+from PIL import Image
+
 # --- Import Logic Classes ---
 from decryption import MLKEMDecryptor
 from encryption import MLKEMCrypto
@@ -43,7 +45,7 @@ class MLKEMGui(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("ML-KEM Encryption Tool - Secure Modular Version")
+        self.title("CRYPTIFY - Lock it down")
         self.geometry("1100x800")
 
         # Initialize Logic Classes
@@ -66,17 +68,20 @@ class MLKEMGui(ctk.CTk):
         self.sidebar_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(12, weight=1)
 
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="ML-KEM TOOL",
-                                       font=ctk.CTkFont(size=20, weight="bold"))
+        logo_img = ctk.CTkImage(light_image=Image.open("logo.png"),
+                                dark_image=Image.open("logo.png"),
+                                size=(100, 50))  # Change (Width, Height) as needed
+
+        # Create the label with the image
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="", image=logo_img)
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         buttons = [
             ("Generate Keypair", self.view_generate),
             ("Export Public Key", self.view_export),
             ("Import Public Key", self.view_import),
-            ("Encrypt (Self)", self.view_encrypt_self),
-            ("Encrypt (Recipient)", self.view_encrypt_recipient),
-            ("Decrypt File", self.view_decrypt),
+            ("Encrypt File(s)", self.view_encrypt_unified),  # MERGED BUTTON
+            ("Decrypt File(s)", self.view_decrypt),
             ("Delete My Key", self.view_delete_key),
             ("Delete Recipient", self.view_delete_recipient),
         ]
@@ -210,30 +215,54 @@ class MLKEMGui(ctk.CTk):
         except Exception as e:
             print(f"[!] Error: {e}")
 
-    def view_encrypt_self(self):
-        self.show_frame("enc_self")
-        self._header("Batch Encrypt (Self)")
-        my_keys = [k['id'] for k in self.km.list_keys()]
-        ctk.CTkLabel(self.main_frame, text="Select Your Key ID:", anchor="w").pack(fill="x", padx=50)
-        self.key_id_combo = ctk.CTkComboBox(self.main_frame, values=my_keys)
-        self.key_id_combo.pack(fill="x", padx=50, pady=5)
-        self._entry("password", "Key Password", show="*")
+    # --- UNIFIED ENCRYPT VIEW ---
+    def view_encrypt_unified(self):
+        self.show_frame("encrypt_unified")
+        self._header("Batch Encrypt Files")
+
+        # 1. Mode Selection
+        ctk.CTkLabel(self.main_frame, text="Encryption Mode:", anchor="w").pack(fill="x", padx=50)
+        self.enc_mode_combo = ctk.CTkComboBox(self.main_frame, values=["Encrypt for Self", "Encrypt for Recipient"], command=self._update_enc_ui)
+        self.enc_mode_combo.pack(fill="x", padx=50, pady=(0, 15))
+        self.enc_mode_combo.set("Encrypt for Self")  # Default
+
+        # 2. Dynamic Input Frame (Holds Key/Pwd or Recipient)
+        self.dynamic_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.dynamic_frame.pack(fill="x", padx=0, pady=0)
+
+        # 3. File Inputs (Common)
         self._file_picker("input_file", "Select File(s)")
         self._entry("output_file", "Output Filename (Single file only)")
 
-        ctk.CTkButton(self.main_frame, text="Encrypt Files", command=self.action_enc_self, fg_color="#3B8ED0").pack(pady=20)
+        # 4. Action Button
+        ctk.CTkButton(self.main_frame, text="Start Encryption", command=self.action_encrypt_dispatch, fg_color="#3B8ED0").pack(pady=20)
 
-    def view_encrypt_recipient(self):
-        self.show_frame("enc_recip")
-        self._header("Batch Encrypt (Recipient)")
-        recipients = [r['recipient'] for r in self.km.list_public_keys()]
-        ctk.CTkLabel(self.main_frame, text="Select Recipient:", anchor="w").pack(fill="x", padx=50)
-        self.recip_combo = ctk.CTkComboBox(self.main_frame, values=recipients)
-        self.recip_combo.pack(fill="x", padx=50, pady=5)
-        self._file_picker("input_file", "Select File(s)")
-        self._entry("output_file", "Output Filename (Single file only)")
+        # Initialize the dynamic part
+        self._update_enc_ui("Encrypt for Self")
 
-        ctk.CTkButton(self.main_frame, text="Encrypt Files", command=self.action_enc_recip, fg_color="#3B8ED0").pack(pady=20)
+    def _update_enc_ui(self, choice):
+        """Swaps widgets based on dropdown selection."""
+        # Clear previous dynamic widgets
+        for widget in self.dynamic_frame.winfo_children():
+            widget.destroy()
+
+        if choice == "Encrypt for Self":
+            # Show My Key ID + Password
+            my_keys = [k['id'] for k in self.km.list_keys()]
+            ctk.CTkLabel(self.dynamic_frame, text="Select Your Key ID:", anchor="w").pack(fill="x", padx=50)
+            self.enc_key_combo = ctk.CTkComboBox(self.dynamic_frame, values=my_keys)
+            self.enc_key_combo.pack(fill="x", padx=50, pady=5)
+
+            ctk.CTkLabel(self.dynamic_frame, text="Key Password:", anchor="w").pack(fill="x", padx=50)
+            self.enc_pwd_entry = ctk.CTkEntry(self.dynamic_frame, placeholder_text="Password", show="*")
+            self.enc_pwd_entry.pack(fill="x", padx=50, pady=5)
+
+        else:  # Encrypt for Recipient
+            # Show Recipient List
+            recipients = [r['recipient'] for r in self.km.list_public_keys()]
+            ctk.CTkLabel(self.dynamic_frame, text="Select Recipient:", anchor="w").pack(fill="x", padx=50)
+            self.enc_recip_combo = ctk.CTkComboBox(self.dynamic_frame, values=recipients)
+            self.enc_recip_combo.pack(fill="x", padx=50, pady=5)
 
     def view_decrypt(self):
         self.show_frame("decrypt")
@@ -286,24 +315,40 @@ class MLKEMGui(ctk.CTk):
 
         ctk.CTkButton(self.main_frame, text="DELETE", command=_run, fg_color="#A83232").pack(pady=20)
 
-    # ========================== ACTIONS (SEQUENTIAL) ==========================
+    # ========================== ACTIONS (DISPATCHER) ==========================
 
-    def action_enc_self(self):
-        kid = self.key_id_combo.get().strip()
-        pwd = self.entries["password"].get()
+    def action_encrypt_dispatch(self):
+        """Decides which encryption logic to run based on the dropdown."""
+        mode = self.enc_mode_combo.get()
+        if mode == "Encrypt for Self":
+            self._run_enc_self()
+        else:
+            self._run_enc_recip()
+
+    def _run_enc_self(self):
+        # Gather inputs from dynamic fields
+        try:
+            kid = self.enc_key_combo.get().strip()
+            pwd = self.enc_pwd_entry.get()
+        except AttributeError:
+            messagebox.showerror("Error", "Please select a key.")
+            return
+
         raw = self.entries["input_file"].get().strip()
         user_out = self.entries["output_file"].get().strip()
-        if not raw: return
+        if not raw:
+            messagebox.showerror("Error", "No files selected.")
+            return
 
         infiles = [f.strip() for f in raw.split(" ; ") if f.strip()]
         total = len(infiles)
 
-        def _run_sequential():
+        def _thread():
             try:
                 print(f"[*] Loading Key: {kid}...")
                 public_key, _ = self.km.load_keypair(kid, pwd)
 
-                print(f"[*] Processing {total} file(s) sequentially...")
+                print(f"[*] Processing {total} file(s) for SELF...")
                 success = 0
 
                 for idx, infile in enumerate(infiles, 1):
@@ -311,11 +356,9 @@ class MLKEMGui(ctk.CTk):
                         p_in = Path(infile)
                         if not p_in.exists(): continue
 
-                        # Create Folder
                         enc_dir = p_in.parent / "encrypted_files"
                         enc_dir.mkdir(parents=True, exist_ok=True)
 
-                        # Determine Output Name
                         if total == 1 and user_out:
                             outfile = str(enc_dir / user_out)
                         else:
@@ -330,7 +373,6 @@ class MLKEMGui(ctk.CTk):
                         gc.collect()
                         print(f"   -> Saved: {Path(outfile).name}")
                         success += 1
-
                     except Exception as e:
                         print(f"[!] Failed {p_in.name}: {e}")
 
@@ -341,23 +383,30 @@ class MLKEMGui(ctk.CTk):
                 print(f"[!] Critical Error: {e}")
                 messagebox.showerror("Error", str(e))
 
-        threading.Thread(target=_run_sequential).start()
+        threading.Thread(target=_thread).start()
 
-    def action_enc_recip(self):
-        name = self.recip_combo.get().strip()
+    def _run_enc_recip(self):
+        try:
+            name = self.enc_recip_combo.get().strip()
+        except AttributeError:
+            messagebox.showerror("Error", "Please select a recipient.")
+            return
+
         raw = self.entries["input_file"].get().strip()
         user_out = self.entries["output_file"].get().strip()
-        if not raw: return
+        if not raw:
+            messagebox.showerror("Error", "No files selected.")
+            return
 
         infiles = [f.strip() for f in raw.split(" ; ") if f.strip()]
         total = len(infiles)
 
-        def _run_sequential():
+        def _thread():
             try:
                 print(f"[*] Loading Public Key: {name}...")
                 public_key = self.km.get_public_key(name)
 
-                print(f"[*] Processing {total} file(s) sequentially...")
+                print(f"[*] Processing {total} file(s) for RECIPIENT...")
                 success = 0
 
                 for idx, infile in enumerate(infiles, 1):
@@ -390,7 +439,7 @@ class MLKEMGui(ctk.CTk):
             except Exception as e:
                 print(f"[!] Error: {e}")
 
-        threading.Thread(target=_run_sequential).start()
+        threading.Thread(target=_thread).start()
 
     def action_decrypt(self):
         kid = self.decrypt_key_combo.get().strip()
@@ -415,7 +464,7 @@ class MLKEMGui(ctk.CTk):
                         p_in = Path(infile)
                         if not p_in.exists(): continue
 
-                        # --- NEW: Create Decrypted Folder ---
+                        # Create Decrypted Folder
                         dec_dir = p_in.parent / "decrypted_files"
                         dec_dir.mkdir(parents=True, exist_ok=True)
 
@@ -423,7 +472,6 @@ class MLKEMGui(ctk.CTk):
                         if total == 1 and user_out:
                             outfile = str(dec_dir / user_out)
                         else:
-                            # Strip .enc or add .dec
                             fname = p_in.name.replace(".enc", "")
                             if fname == p_in.name: fname += ".dec"
                             outfile = str(dec_dir / fname)
