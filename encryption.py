@@ -1,4 +1,5 @@
 import base64
+import gc
 import json
 import os
 import secrets
@@ -17,7 +18,8 @@ class MLKEMCrypto:
     def __init__(self, kem_algorithm: str = "Kyber768"):
         self.kem_algorithm = kem_algorithm
         self.compobj = CompressorDecompressor()
-        self.CHUNK_SIZE = 16 * 1024 * 1024  # 16 MB per chunk
+        self.CHUNK_SIZE = 256 * 1024  # 256 KB per chunk
+        self.WRITE_SIZE = 4 * 1024 * 1024 # 4 MB per chunk
 
     def encrypt_data_for_recipient(self, infile, outfile, recipient_public_key: bytes) -> dict:
         """Encapsulate to recipient public key and encrypt plaintext with AESGCM."""
@@ -39,28 +41,36 @@ class MLKEMCrypto:
             aesgcm = AESGCM(aes_key)
             print("Encrypting data...")
 
-            with open(outfile, 'wb', buffering=64 * 1024 * 1024) as fout:
+            with open(outfile, 'wb') as fout:
                 fout.write(nonce_prefix)
                 fout.write(struct.pack(">I", self.CHUNK_SIZE))
 
                 chunk_index = 0
-                chunk_buffer = bytearray()
-                # Read from compressed temp file
-                with open(compressed_temp_file, 'rb', buffering=16 * 1024 * 1024) as fin:
+                enc_chunk_buffer = bytearray()
+
+                with open(compressed_temp_file, 'rb') as fin:
                     while True:
                         chunk = fin.read(self.CHUNK_SIZE)
                         if not chunk:
-                            break  # End of file
-                        chunk_buffer.extend(chunk)
-                        if len(chunk_buffer) > 64 * 1024 * 1024 or chunk_buffer is not None:
-                            nonce = nonce_prefix + struct.pack(">I", chunk_index)
-                            encrypted_chunk = aesgcm.encrypt(nonce, chunk_buffer, associated_data=None)
+                            break
 
-                            fout.write(struct.pack(">I", len(encrypted_chunk)))
-                            fout.write(encrypted_chunk)
+                        nonce = nonce_prefix + struct.pack(">I", chunk_index)
+                        encrypted_chunk = aesgcm.encrypt(nonce, chunk, associated_data=None)
 
-                            chunk_index += 1
-                            chunk_buffer.clear()
+                        # Add length prefix + encrypted data to buffer
+                        enc_chunk_buffer.extend(struct.pack(">I", len(encrypted_chunk)))
+                        enc_chunk_buffer.extend(encrypted_chunk)
+
+                        chunk_index += 1
+
+                        # Flush buffer when it reaches WRITE_SIZE
+                        if len(enc_chunk_buffer) >= self.WRITE_SIZE:
+                            fout.write(enc_chunk_buffer)
+                            enc_chunk_buffer.clear()
+
+                # CRITICAL: Flush remaining data
+                if enc_chunk_buffer:
+                    fout.write(enc_chunk_buffer)
 
         finally:
             secure_erase(_to_bytearray(aes_key))

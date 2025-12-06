@@ -13,8 +13,8 @@ class CompressorDecompressor:
             chunk_size: Size of chunks for streaming operations (default 4MB)
         """
         self.CHUNK = chunk_size
-        self.READ_SIZE = 32 * 1024 * 1024
-        self.WRITE_SIZE = 64 * 1024 * 1024
+        self.READ_SIZE = 256 * 1024
+        self.WRITE_SIZE = 4 * 1024 * 1024
 
     def compress_file(self, infile: str) -> str:
         """
@@ -64,14 +64,14 @@ class CompressorDecompressor:
             None
         """
         print("Decompressing data...")
-        decompressor = zstd.ZstdDecompressor()
+        decompressor = zstd.ZstdDecompressor(max_window_size=2**31)
         try:
             with open(infile, 'rb', buffering=self.READ_SIZE) as fin:
-                with open(outfile, 'wb', self.WRITE_SIZE) as fout:
+                with open(outfile, 'wb', buffering=self.WRITE_SIZE) as fout:
                     # Use copy_stream for efficient streaming decompression
                     decompressor.copy_stream(fin, fout, read_size=self.READ_SIZE, write_size=self.WRITE_SIZE)
         except Exception as e:
             print(f"Decompression failed: {str(e)}")
-
+            raise
 
         print(f"Data decompressed to: {outfile}")

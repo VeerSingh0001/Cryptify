@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import struct
+import tempfile
 
 import oqs
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -15,6 +16,8 @@ class MLKEMDecryptor:
     def __init__(self, kem_algorithm: str = "Kyber768"):
         self.kem_algorithm = kem_algorithm
         self.compobj = CompressorDecompressor()
+        self.CHUNK_SIZE = 256 * 1024  # 256 KB per chunk
+        self.WRITE_SIZE = 4 * 1024 * 1024  # 4 MB per chunk
 
     def decrypt_package(self, package: dict, infile, outfile, secret_key: bytes) -> bytes:
         print("Decrypting package...")
@@ -55,13 +58,13 @@ class MLKEMDecryptor:
             secure_erase(_to_bytearray(shared_secret))
 
         # Step 4: Create temp file for decrypted data
-        import tempfile
+
         temp_fd, temp_filepath = tempfile.mkstemp(dir='/var/tmp', suffix='.dec')
 
         try:
             aesgcm = AESGCM(aes_key)
 
-            with open(infile, 'rb') as fin:
+            with (open(infile, 'rb') as fin):
                 # Read nonce prefix (12 bytes)
                 stored_nonce_prefix = fin.read(12)
                 if len(stored_nonce_prefix) < 12:
@@ -78,7 +81,7 @@ class MLKEMDecryptor:
 
                 # Decrypt all chunks and write to temp file
                 chunk_index = 0
-                encrypted_chunk_buffer = bytearray()
+                unencrypted_chunk_buffer = bytearray()
                 with os.fdopen(temp_fd, 'wb') as temp_file:
                     while fin.tell() < metadata_start_position:
                         # Read encrypted chunk length (4 bytes)
@@ -96,21 +99,28 @@ class MLKEMDecryptor:
                         encrypted_chunk = fin.read(encrypted_chunk_len)
                         if len(encrypted_chunk) < encrypted_chunk_len:
                             raise ValueError(f"Invalid encrypted data: incomplete chunk at index {chunk_index}")
-                        encrypted_chunk_buffer.extend(encrypted_chunk)
 
-                        if len(encrypted_chunk_buffer) >= 64 * 1024 * 1024 or encrypted_chunk_buffer is not None:
-                            # Reconstruct nonce for this chunk
-                            nonce = nonce_prefix + struct.pack(">I", chunk_index)
+                        # Reconstruct nonce for this chunk
+                        nonce = nonce_prefix + struct.pack(">I", chunk_index)
 
-                            # Decrypt chunk
-                            try:
+                        # Decrypt chunk
+                        try:
                                 decrypted_chunk = aesgcm.decrypt(nonce, encrypted_chunk, associated_data=None)
-                                temp_file.write(decrypted_chunk)
-                            except Exception as e:
-                                raise ValueError(f"Failed to decrypt chunk {chunk_index}: {str(e)}")
+                                unencrypted_chunk_buffer.extend(decrypted_chunk)
+                                chunk_index += 1
+                                if len(unencrypted_chunk_buffer) >= self.WRITE_SIZE:
+                                    temp_file.write(unencrypted_chunk_buffer)
+                                    unencrypted_chunk_buffer.clear()
 
-                            chunk_index += 1
-                            encrypted_chunk_buffer.clear()
+                        except Exception as e:
+                            raise ValueError(f"Failed to decrypt chunk {chunk_index}: {str(e)}")
+
+                        finally:
+                            if unencrypted_chunk_buffer:
+                                temp_file.write(unencrypted_chunk_buffer)
+
+
+                        unencrypted_chunk_buffer.clear()
 
             print(f"Decrypted data stored temporarily at: {temp_filepath}")
 
