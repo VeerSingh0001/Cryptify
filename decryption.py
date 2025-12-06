@@ -105,12 +105,12 @@ class MLKEMDecryptor:
 
                         # Decrypt chunk
                         try:
-                                decrypted_chunk = aesgcm.decrypt(nonce, encrypted_chunk, associated_data=None)
-                                unencrypted_chunk_buffer.extend(decrypted_chunk)
-                                chunk_index += 1
-                                if len(unencrypted_chunk_buffer) >= self.WRITE_SIZE:
-                                    temp_file.write(unencrypted_chunk_buffer)
-                                    unencrypted_chunk_buffer.clear()
+                            decrypted_chunk = aesgcm.decrypt(nonce, encrypted_chunk, associated_data=None)
+                            unencrypted_chunk_buffer.extend(decrypted_chunk)
+                            chunk_index += 1
+                            if len(unencrypted_chunk_buffer) >= self.WRITE_SIZE:
+                                temp_file.write(unencrypted_chunk_buffer)
+                                unencrypted_chunk_buffer.clear()
 
                         except Exception as e:
                             raise ValueError(f"Failed to decrypt chunk {chunk_index}: {str(e)}")
@@ -118,7 +118,6 @@ class MLKEMDecryptor:
                         finally:
                             if unencrypted_chunk_buffer:
                                 temp_file.write(unencrypted_chunk_buffer)
-
 
                         unencrypted_chunk_buffer.clear()
 

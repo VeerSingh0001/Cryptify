@@ -1,5 +1,4 @@
 import base64
-import gc
 import json
 import os
 import secrets
@@ -19,9 +18,9 @@ class MLKEMCrypto:
         self.kem_algorithm = kem_algorithm
         self.compobj = CompressorDecompressor()
         self.CHUNK_SIZE = 256 * 1024  # 256 KB per chunk
-        self.WRITE_SIZE = 4 * 1024 * 1024 # 4 MB per chunk
+        self.WRITE_SIZE = 4 * 1024 * 1024  # 4 MB per chunk
 
-    def encrypt_data_for_recipient(self, infile, outfile, recipient_public_key: bytes) -> dict:
+    def encrypt_data_for_recipient(self, infile, outfile, recipient_public_key: bytes = None) -> dict:
         """Encapsulate to recipient public key and encrypt plaintext with AESGCM."""
         salt = secrets.token_bytes(32)
         nonce_prefix = secrets.token_bytes(12)

@@ -51,7 +51,6 @@ class CompressorDecompressor:
                 os.unlink(temp_filepath)
             raise ValueError(f"Compression failed: {str(e)}")
 
-
     def decompress_data(self, infile: str, outfile: str):
         """
         Decompress data from input file directly into output file.
@@ -64,7 +63,7 @@ class CompressorDecompressor:
             None
         """
         print("Decompressing data...")
-        decompressor = zstd.ZstdDecompressor(max_window_size=2**31)
+        decompressor = zstd.ZstdDecompressor(max_window_size=2 ** 31)
         try:
             with open(infile, 'rb', buffering=self.READ_SIZE) as fin:
                 with open(outfile, 'wb', buffering=self.WRITE_SIZE) as fout:
