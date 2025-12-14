@@ -48,6 +48,14 @@ class MLKEMGui(ctk.CTk):
         self.title("CRYPTIFY - Lock it down")
         self.geometry("1100x800")
 
+        # --- FONT CONFIGURATION (Increased Sizes) ---
+        self.font_header = ("Arial", 30, "bold")
+        self.font_normal = ("Arial", 16)
+        self.font_bold = ("Arial", 16, "bold")
+        self.font_sidebar = ("Arial", 16)
+        self.font_console = ("Consolas", 14)
+        self.font_small_bold = ("Arial", 14, "bold")
+
         # Initialize Logic Classes
         self.km = KeyManager()
         self.crypto = MLKEMCrypto()
@@ -68,19 +76,23 @@ class MLKEMGui(ctk.CTk):
         self.sidebar_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(12, weight=1)
 
-        logo_img = ctk.CTkImage(light_image=Image.open("logo.png"),
-                                dark_image=Image.open("logo.png"),
-                                size=(100, 50))  # Change (Width, Height) as needed
-
-        # Create the label with the image
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="", image=logo_img)
-        self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
+        # Load Logo
+        try:
+            logo_img = ctk.CTkImage(light_image=Image.open("logo.png"),
+                                    dark_image=Image.open("logo.png"),
+                                    size=(100, 50))
+            self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="", image=logo_img)
+            self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
+        except:
+            # Fallback if logo.png is missing
+            self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="CRYPTIFY", font=self.font_header)
+            self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         buttons = [
             ("Generate Keypair", self.view_generate),
             ("Export Public Key", self.view_export),
             ("Import Public Key", self.view_import),
-            ("Encrypt File(s)", self.view_encrypt_unified),  # MERGED BUTTON
+            ("Encrypt File(s)", self.view_encrypt_unified),
             ("Decrypt File(s)", self.view_decrypt),
             ("Delete My Key", self.view_delete_key),
             ("Delete Recipient", self.view_delete_recipient),
@@ -89,11 +101,13 @@ class MLKEMGui(ctk.CTk):
         for i, (text, command) in enumerate(buttons, start=1):
             btn = ctk.CTkButton(self.sidebar_frame, text=text, command=command,
                                 fg_color="transparent", text_color=("gray10", "#DCE4EE"),
-                                anchor="w", hover_color=("gray70", "gray30"))
-            btn.grid(row=i, column=0, padx=20, pady=5, sticky="ew")
+                                anchor="w", hover_color=("gray70", "gray30"),
+                                font=self.font_sidebar)  # Applied Font
+            btn.grid(row=i, column=0, padx=20, pady=10, sticky="ew")
 
         self.exit_btn = ctk.CTkButton(self.sidebar_frame, text="Exit", command=self.quit_app,
-                                      fg_color="#A83232", hover_color="#821D1D")
+                                      fg_color="#A83232", hover_color="#821D1D",
+                                      font=self.font_bold)  # Applied Font
         self.exit_btn.grid(row=13, column=0, padx=20, pady=20, sticky="s")
 
     def setup_main_area(self):
@@ -106,9 +120,9 @@ class MLKEMGui(ctk.CTk):
         self.console_frame.grid(row=1, column=1, sticky="nsew", padx=20, pady=(0, 20))
         self.grid_rowconfigure(1, weight=1)
 
-        ctk.CTkLabel(self.console_frame, text="System Log / Output:", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
+        ctk.CTkLabel(self.console_frame, text="System Log / Output:", font=self.font_small_bold).pack(anchor="w", padx=10, pady=(5, 0))
 
-        self.log_box = ctk.CTkTextbox(self.console_frame, font=("Consolas", 12))
+        self.log_box = ctk.CTkTextbox(self.console_frame, font=self.font_console)  # Applied Font
         self.log_box.pack(fill="both", expand=True, padx=10, pady=5)
         self.log_box.configure(state="disabled")
 
@@ -164,15 +178,19 @@ class MLKEMGui(ctk.CTk):
 
             threading.Thread(target=_thread).start()
 
-        ctk.CTkButton(self.main_frame, text="Generate Keypair", command=_run, fg_color="#2CC985").pack(pady=20, fill="x", padx=100)
+        ctk.CTkButton(self.main_frame, text="Generate Keypair", command=_run,
+                      fg_color="#2CC985", font=self.font_bold).pack(pady=20, fill="x", padx=100)
 
     def view_export(self):
         self.show_frame("export")
         self._header("Export Public Key")
         my_keys = [k['id'] for k in self.km.list_keys()]
-        ctk.CTkLabel(self.main_frame, text="Select Key ID:", anchor="w").pack(fill="x", padx=50)
-        self.export_key_combo = ctk.CTkComboBox(self.main_frame, values=my_keys)
+
+        ctk.CTkLabel(self.main_frame, text="Select Key ID:", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+        self.export_key_combo = ctk.CTkComboBox(self.main_frame, values=my_keys,
+                                                font=self.font_normal, dropdown_font=self.font_normal)
         self.export_key_combo.pack(fill="x", padx=50, pady=5)
+
         self._entry("password", "Key Password", show="*")
         self._entry("outfile", "Output Filename (Optional)")
 
@@ -183,7 +201,7 @@ class MLKEMGui(ctk.CTk):
             if not out: out = f"{kid}_public.json"
             threading.Thread(target=lambda: self._thread_export(kid, pwd, out)).start()
 
-        ctk.CTkButton(self.main_frame, text="Export Key", command=_run).pack(pady=20)
+        ctk.CTkButton(self.main_frame, text="Export Key", command=_run, font=self.font_bold).pack(pady=20)
 
     def _thread_export(self, kid, pwd, out):
         try:
@@ -205,7 +223,7 @@ class MLKEMGui(ctk.CTk):
             if not Path(fpath).exists(): return
             threading.Thread(target=lambda: self._thread_import(fpath, name)).start()
 
-        ctk.CTkButton(self.main_frame, text="Import Key", command=_run).pack(pady=20)
+        ctk.CTkButton(self.main_frame, text="Import Key", command=_run, font=self.font_bold).pack(pady=20)
 
     def _thread_import(self, fpath, name):
         try:
@@ -221,8 +239,10 @@ class MLKEMGui(ctk.CTk):
         self._header("Batch Encrypt Files")
 
         # 1. Mode Selection
-        ctk.CTkLabel(self.main_frame, text="Encryption Mode:", anchor="w").pack(fill="x", padx=50)
-        self.enc_mode_combo = ctk.CTkComboBox(self.main_frame, values=["Encrypt for Self", "Encrypt for Recipient"], command=self._update_enc_ui)
+        ctk.CTkLabel(self.main_frame, text="Encryption Mode:", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+        self.enc_mode_combo = ctk.CTkComboBox(self.main_frame, values=["Encrypt for Self", "Encrypt for Recipient"],
+                                              command=self._update_enc_ui,
+                                              font=self.font_normal, dropdown_font=self.font_normal)
         self.enc_mode_combo.pack(fill="x", padx=50, pady=(0, 15))
         self.enc_mode_combo.set("Encrypt for Self")  # Default
 
@@ -235,7 +255,8 @@ class MLKEMGui(ctk.CTk):
         self._entry("output_file", "Output Filename (Single file only)")
 
         # 4. Action Button
-        ctk.CTkButton(self.main_frame, text="Start Encryption", command=self.action_encrypt_dispatch, fg_color="#3B8ED0").pack(pady=20)
+        ctk.CTkButton(self.main_frame, text="Start Encryption", command=self.action_encrypt_dispatch,
+                      fg_color="#3B8ED0", font=self.font_bold).pack(pady=20)
 
         # Initialize the dynamic part
         self._update_enc_ui("Encrypt for Self")
@@ -249,40 +270,51 @@ class MLKEMGui(ctk.CTk):
         if choice == "Encrypt for Self":
             # Show My Key ID + Password
             my_keys = [k['id'] for k in self.km.list_keys()]
-            ctk.CTkLabel(self.dynamic_frame, text="Select Your Key ID:", anchor="w").pack(fill="x", padx=50)
-            self.enc_key_combo = ctk.CTkComboBox(self.dynamic_frame, values=my_keys)
+
+            ctk.CTkLabel(self.dynamic_frame, text="Select Your Key ID:", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+            self.enc_key_combo = ctk.CTkComboBox(self.dynamic_frame, values=my_keys,
+                                                 font=self.font_normal, dropdown_font=self.font_normal)
             self.enc_key_combo.pack(fill="x", padx=50, pady=5)
 
-            ctk.CTkLabel(self.dynamic_frame, text="Key Password:", anchor="w").pack(fill="x", padx=50)
-            self.enc_pwd_entry = ctk.CTkEntry(self.dynamic_frame, placeholder_text="Password", show="*")
+            ctk.CTkLabel(self.dynamic_frame, text="Key Password:", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+            self.enc_pwd_entry = ctk.CTkEntry(self.dynamic_frame, placeholder_text="Password", show="*", font=self.font_normal)
             self.enc_pwd_entry.pack(fill="x", padx=50, pady=5)
 
         else:  # Encrypt for Recipient
             # Show Recipient List
             recipients = [r['recipient'] for r in self.km.list_public_keys()]
-            ctk.CTkLabel(self.dynamic_frame, text="Select Recipient:", anchor="w").pack(fill="x", padx=50)
-            self.enc_recip_combo = ctk.CTkComboBox(self.dynamic_frame, values=recipients)
+
+            ctk.CTkLabel(self.dynamic_frame, text="Select Recipient:", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+            self.enc_recip_combo = ctk.CTkComboBox(self.dynamic_frame, values=recipients,
+                                                   font=self.font_normal, dropdown_font=self.font_normal)
             self.enc_recip_combo.pack(fill="x", padx=50, pady=5)
 
     def view_decrypt(self):
         self.show_frame("decrypt")
         self._header("Batch Decrypt")
         self._file_picker("input_file", "Select Encrypted File(s)")
+
         my_keys = [k['id'] for k in self.km.list_keys()]
-        ctk.CTkLabel(self.main_frame, text="Select Your Key ID:", anchor="w").pack(fill="x", padx=50)
-        self.decrypt_key_combo = ctk.CTkComboBox(self.main_frame, values=my_keys)
+
+        ctk.CTkLabel(self.main_frame, text="Select Your Key ID:", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+        self.decrypt_key_combo = ctk.CTkComboBox(self.main_frame, values=my_keys,
+                                                 font=self.font_normal, dropdown_font=self.font_normal)
         self.decrypt_key_combo.pack(fill="x", padx=50, pady=5)
+
         self._entry("password", "Key Password", show="*")
         self._entry("output_file", "Output Filename (Single file only)")
 
-        ctk.CTkButton(self.main_frame, text="Decrypt Files", command=self.action_decrypt, fg_color="#E04F5F").pack(pady=20)
+        ctk.CTkButton(self.main_frame, text="Decrypt Files", command=self.action_decrypt,
+                      fg_color="#E04F5F", font=self.font_bold).pack(pady=20)
 
     def view_delete_key(self):
         self.show_frame("del_key")
         self._header("Delete Personal Key")
         keys = [k['id'] for k in self.km.list_keys()]
-        ctk.CTkLabel(self.main_frame, text="Select Key ID:", anchor="w").pack(fill="x", padx=50)
-        self.del_key_combo = ctk.CTkComboBox(self.main_frame, values=keys)
+
+        ctk.CTkLabel(self.main_frame, text="Select Key ID:", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+        self.del_key_combo = ctk.CTkComboBox(self.main_frame, values=keys,
+                                             font=self.font_normal, dropdown_font=self.font_normal)
         self.del_key_combo.pack(fill="x", padx=50, pady=5)
 
         def _run():
@@ -294,14 +326,16 @@ class MLKEMGui(ctk.CTk):
                 else:
                     messagebox.showerror("Error", "Not Found")
 
-        ctk.CTkButton(self.main_frame, text="DELETE", command=_run, fg_color="#A83232").pack(pady=20)
+        ctk.CTkButton(self.main_frame, text="DELETE", command=_run, fg_color="#A83232", font=self.font_bold).pack(pady=20)
 
     def view_delete_recipient(self):
         self.show_frame("del_recip")
         self._header("Delete Recipient Key")
         keys = [k['recipient'] for k in self.km.list_public_keys()]
-        ctk.CTkLabel(self.main_frame, text="Select Recipient:", anchor="w").pack(fill="x", padx=50)
-        self.del_recip_combo = ctk.CTkComboBox(self.main_frame, values=keys)
+
+        ctk.CTkLabel(self.main_frame, text="Select Recipient:", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+        self.del_recip_combo = ctk.CTkComboBox(self.main_frame, values=keys,
+                                               font=self.font_normal, dropdown_font=self.font_normal)
         self.del_recip_combo.pack(fill="x", padx=50, pady=5)
 
         def _run():
@@ -313,7 +347,7 @@ class MLKEMGui(ctk.CTk):
                 else:
                     messagebox.showerror("Error", "Not Found")
 
-        ctk.CTkButton(self.main_frame, text="DELETE", command=_run, fg_color="#A83232").pack(pady=20)
+        ctk.CTkButton(self.main_frame, text="DELETE", command=_run, fg_color="#A83232", font=self.font_bold).pack(pady=20)
 
     # ========================== ACTIONS (DISPATCHER) ==========================
 
@@ -496,14 +530,14 @@ class MLKEMGui(ctk.CTk):
 
         threading.Thread(target=_run_sequential).start()
 
-    # --- HELPERS ---
+    # --- HELPERS (Now with Font Support) ---
     def _header(self, text):
-        ctk.CTkLabel(self.main_frame, text=text, font=("Arial", 24, "bold")).pack(pady=(10, 30))
+        ctk.CTkLabel(self.main_frame, text=text, font=self.font_header).pack(pady=(10, 30))
         self.entries = {}
 
     def _entry(self, key, placeholder, show=None):
-        ctk.CTkLabel(self.main_frame, text=placeholder + ":", anchor="w").pack(fill="x", padx=50)
-        e = ctk.CTkEntry(self.main_frame, placeholder_text=placeholder, show=show)
+        ctk.CTkLabel(self.main_frame, text=placeholder + ":", anchor="w", font=self.font_normal).pack(fill="x", padx=50)
+        e = ctk.CTkEntry(self.main_frame, placeholder_text=placeholder, show=show, font=self.font_normal)
         e.pack(fill="x", padx=50, pady=5)
         self.entries[key] = e
         return e
@@ -511,7 +545,7 @@ class MLKEMGui(ctk.CTk):
     def _file_picker(self, key, placeholder):
         f = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         f.pack(fill="x", padx=50, pady=10)
-        e = ctk.CTkEntry(f, placeholder_text=placeholder)
+        e = ctk.CTkEntry(f, placeholder_text=placeholder, font=self.font_normal)
         e.pack(side="left", fill="x", expand=True, padx=(0, 10))
 
         def pick():
@@ -520,7 +554,7 @@ class MLKEMGui(ctk.CTk):
                 e.delete(0, "end")
                 e.insert(0, " ; ".join(fs))
 
-        ctk.CTkButton(f, text="Browse", width=80, command=pick, fg_color="#E59400").pack(side="right")
+        ctk.CTkButton(f, text="Browse", width=80, command=pick, fg_color="#E59400", font=self.font_bold).pack(side="right")
         self.entries[key] = e
 
 

@@ -13,8 +13,8 @@ class CompressorDecompressor:
             chunk_size: Size of chunks for streaming operations (default 4MB)
         """
         self.CHUNK = chunk_size
-        self.READ_SIZE = 32 * 1024 * 1024
-        self.WRITE_SIZE = 64 * 1024 * 1024
+        self.READ_SIZE = 256 * 1024
+        self.WRITE_SIZE = 4 * 1024 * 1024
 
     def compress_file(self, infile: str) -> str:
         """

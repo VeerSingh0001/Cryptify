@@ -16,8 +16,8 @@ class MLKEMDecryptor:
     def __init__(self, kem_algorithm: str = "Kyber768"):
         self.kem_algorithm = kem_algorithm
         self.compobj = CompressorDecompressor()
-        self.CHUNK_SIZE = 32 * 1024 * 1024  # 32 MB per chunk
-        self.WRITE_SIZE = 64 * 1024 * 1024  # 64 MB per chunk
+        self.CHUNK_SIZE = 256 * 1024  # 256 KB per chunk
+        self.WRITE_SIZE = 4 * 1024 * 1024  # 4 MB per chunk
 
     def decrypt_package(self, package: dict, infile, outfile, secret_key: bytes) -> bytes:
         print("Decrypting package...")
