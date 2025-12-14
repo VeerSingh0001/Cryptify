@@ -1,6 +1,5 @@
 import gc
 import getpass
-import sys
 from pathlib import Path
 
 import oqs
@@ -285,7 +284,6 @@ class InteractiveApp:
             print("Recipient key not found ❌")
 
         self.pause()
-
 
 # def main():
 #     if not hasattr(oqs, 'KeyEncapsulation'):
