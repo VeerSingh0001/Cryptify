@@ -5,3 +5,7 @@ liboqs-python
 cffi
 oqs
 zstandard
+git+https://github.com/open-quantum-safe/liboqs-python.git
+customtkinter
+pillow
+appdirs

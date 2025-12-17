@@ -4,6 +4,7 @@ import os
 import struct
 import tempfile
 
+import appdirs
 import oqs
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -18,6 +19,9 @@ class MLKEMDecryptor:
         self.compobj = CompressorDecompressor()
         self.CHUNK_SIZE = 256 * 1024  # 256 KB per chunk
         self.WRITE_SIZE = 4 * 1024 * 1024  # 4 MB per chunk
+        self.app_name = "Cryptify"
+        self.app_author = "User"
+        self.temp_dir = appdirs.user_cache_dir(self.app_name, self.app_author)
 
     def decrypt_package(self, package: dict, infile, outfile, secret_key: bytes) -> bytes:
         print("Decrypting package...")
@@ -58,8 +62,8 @@ class MLKEMDecryptor:
             secure_erase(_to_bytearray(shared_secret))
 
         # Step 4: Create temp file for decrypted data
-
-        temp_fd, temp_filepath = tempfile.mkstemp(dir='/var/tmp', suffix='.dec')
+        os.makedirs(self.temp_dir, exist_ok=True)
+        temp_fd, temp_filepath = tempfile.mkstemp(dir=self.temp_dir, suffix='.dec')
 
         try:
             aesgcm = AESGCM(aes_key)

@@ -1,5 +1,6 @@
 import os
 import tempfile
+import appdirs
 
 import zstandard as zstd
 
@@ -15,6 +16,9 @@ class CompressorDecompressor:
         self.CHUNK = chunk_size
         self.READ_SIZE = 256 * 1024
         self.WRITE_SIZE = 4 * 1024 * 1024
+        self.app_name = "Cryptify"
+        self.app_author = "User"
+        self.temp_dir = appdirs.user_cache_dir(self.app_name, self.app_author)
 
     def compress_file(self, infile: str) -> str:
         """
@@ -36,7 +40,8 @@ class CompressorDecompressor:
         )
 
         # Create temp file for compressed data
-        temp_fd, temp_filepath = tempfile.mkstemp(dir='/var/tmp', suffix='.zst')
+        os.makedirs(self.temp_dir, exist_ok=True)
+        temp_fd, temp_filepath = tempfile.mkstemp(dir=self.temp_dir, suffix='.zst')
         try:
             with open(infile, 'rb', buffering=self.READ_SIZE) as fin:
                 with os.fdopen(temp_fd, 'wb', buffering=self.WRITE_SIZE) as temp_file:

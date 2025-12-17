@@ -4,6 +4,7 @@ import os
 import secrets
 import struct
 from datetime import datetime
+import appdirs
 
 import oqs
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
