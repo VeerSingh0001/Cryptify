@@ -1,5 +1,6 @@
 import gc
 import getpass
+import sys
 from pathlib import Path
 
 import oqs
@@ -285,14 +286,14 @@ class InteractiveApp:
 
         self.pause()
 
-# def main():
-#     if not hasattr(oqs, 'KeyEncapsulation'):
-#         print("ERROR: liboqs-python not installed or not available.")
-#         print("Install: pip install git+https://github.com/open-quantum-safe/liboqs-python.git")
-#         sys.exit(1)
-#     app = InteractiveApp()
-#     app.menu()
+def main():
+    if not hasattr(oqs, 'KeyEncapsulation'):
+        print("ERROR: liboqs-python not installed or not available.")
+        print("Install: pip install git+https://github.com/open-quantum-safe/liboqs-python.git")
+        sys.exit(1)
+    app = InteractiveApp()
+    app.menu()
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()

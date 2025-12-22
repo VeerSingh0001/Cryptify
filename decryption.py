@@ -1,10 +1,9 @@
 import base64
 import json
-import os
-import struct
-import tempfile
 
-import appdirs
+import struct
+
+
 import oqs
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -19,12 +18,9 @@ class MLKEMDecryptor:
         self.compobj = CompressorDecompressor()
         self.CHUNK_SIZE = 256 * 1024  # 256 KB per chunk
         self.WRITE_SIZE = 4 * 1024 * 1024  # 4 MB per chunk
-        self.app_name = "Cryptify"
-        self.app_author = "User"
-        self.temp_dir = appdirs.user_cache_dir(self.app_name, self.app_author)
 
-    def decrypt_package(self, package: dict, infile, outfile, secret_key: bytes) -> bytes:
-        print("Decrypting package...")
+    def decrypt_package(self, package: dict, infile, outfile, secret_key: bytes):
+        print("Decrypting data...")
 
         # Step 1: Read metadata start position to know where encrypted data ends
         with open(infile, 'rb') as f:
@@ -61,10 +57,6 @@ class MLKEMDecryptor:
         finally:
             secure_erase(_to_bytearray(shared_secret))
 
-        # Step 4: Create temp file for decrypted data
-        os.makedirs(self.temp_dir, exist_ok=True)
-        temp_fd, temp_filepath = tempfile.mkstemp(dir=self.temp_dir, suffix='.dec')
-
         try:
             aesgcm = AESGCM(aes_key)
 
@@ -86,7 +78,7 @@ class MLKEMDecryptor:
                 # Decrypt all chunks and write to temp file
                 chunk_index = 0
                 unencrypted_chunk_buffer = bytearray()
-                with os.fdopen(temp_fd, 'wb') as temp_file:
+                with open(outfile, 'wb') as fout:
                     while fin.tell() < metadata_start_position:
                         # Read encrypted chunk length (4 bytes)
                         len_bytes = fin.read(4)
@@ -110,10 +102,11 @@ class MLKEMDecryptor:
                         # Decrypt chunk
                         try:
                             decrypted_chunk = aesgcm.decrypt(nonce, encrypted_chunk, associated_data=None)
-                            unencrypted_chunk_buffer.extend(decrypted_chunk)
+                            decompressed_chunk = self.compobj.decompress_data(decrypted_chunk)
+                            unencrypted_chunk_buffer.extend(decompressed_chunk)
                             chunk_index += 1
                             if len(unencrypted_chunk_buffer) >= self.WRITE_SIZE:
-                                temp_file.write(unencrypted_chunk_buffer)
+                                fout.write(unencrypted_chunk_buffer)
                                 unencrypted_chunk_buffer.clear()
 
                         except Exception as e:
@@ -121,18 +114,9 @@ class MLKEMDecryptor:
 
                         finally:
                             if unencrypted_chunk_buffer:
-                                temp_file.write(unencrypted_chunk_buffer)
+                                fout.write(unencrypted_chunk_buffer)
 
                         unencrypted_chunk_buffer.clear()
-
-            print(f"Decrypted data stored temporarily at: {temp_filepath}")
-
-            # Step 5: Decompress the decrypted data from temp file
-            try:
-                decompressed_plaintext = self.compobj.decompress_data(temp_filepath, outfile)
-                return decompressed_plaintext
-            except Exception as e:
-                raise ValueError(f"Decompression failed: {str(e)}")
 
         except Exception as e:
             if isinstance(e, ValueError):
@@ -141,15 +125,11 @@ class MLKEMDecryptor:
 
         finally:
             secure_erase(_to_bytearray(aes_key))
-            # Clean up temp file after decompression
-            if os.path.exists(temp_filepath):
-                os.unlink(temp_filepath)
-                print(f"Temporary file cleaned up: {temp_filepath}")
 
     @staticmethod
     def decrypt_file(infile, key):
         """Decryption of file"""
-        print("Decrypting file...")
+        print("Decrypting Metadata...")
 
         with open(infile, "rb") as fin:
             # Step 1: Read metadata start position from the last 8 bytes

@@ -20,62 +20,35 @@ class CompressorDecompressor:
         self.app_author = "User"
         self.temp_dir = appdirs.user_cache_dir(self.app_name, self.app_author)
 
-    def compress_file(self, infile: str) -> str:
+    @staticmethod
+    def compress_file(data) :
         """
-        Compress file efficiently for any size.
-        Writes compressed data directly to a temp file.
 
         Args:
-            infile: Path to input file
+            data: chunk data
 
         Returns:
-            Path to the temporary file containing compressed data
+            Compressed chunked data
         """
-        print("Compressing file...")
 
         compressor = zstd.ZstdCompressor(
             level=1,
             threads=-1,
             write_content_size=True
         )
+        return compressor.compress(data)
 
-        # Create temp file for compressed data
-        os.makedirs(self.temp_dir, exist_ok=True)
-        temp_fd, temp_filepath = tempfile.mkstemp(dir=self.temp_dir, suffix='.zst')
-        try:
-            with open(infile, 'rb', buffering=self.READ_SIZE) as fin:
-                with os.fdopen(temp_fd, 'wb', buffering=self.WRITE_SIZE) as temp_file:
-                    # Stream compress directly from input file to temp file
-                    compressor.copy_stream(fin, temp_file, read_size=self.READ_SIZE, write_size=self.WRITE_SIZE)
-            print(f"Compressed data stored at: {temp_filepath}")
-            return temp_filepath
 
-        except Exception as e:
-            # Clean up temp file on error
-            if os.path.exists(temp_filepath):
-                os.unlink(temp_filepath)
-            raise ValueError(f"Compression failed: {str(e)}")
-
-    def decompress_data(self, infile: str, outfile: str):
+    @staticmethod
+    def decompress_data(data):
         """
         Decompress data from input file directly into output file.
 
         Args:
-            infile: Path to the compressed input file
-            outfile: Path to the output file for decompressed data
+            data: decrypted chunk data
 
         Returns:
-            None
+            decompressed chunk data
         """
-        print("Decompressing data...")
         decompressor = zstd.ZstdDecompressor(max_window_size=2 ** 31)
-        try:
-            with open(infile, 'rb', buffering=self.READ_SIZE) as fin:
-                with open(outfile, 'wb', buffering=self.WRITE_SIZE) as fout:
-                    # Use copy_stream for efficient streaming decompression
-                    decompressor.copy_stream(fin, fout, read_size=self.READ_SIZE, write_size=self.WRITE_SIZE)
-        except Exception as e:
-            print(f"Decompression failed: {str(e)}")
-            raise
-
-        print(f"Data decompressed to: {outfile}")
+        return decompressor.decompress(data)

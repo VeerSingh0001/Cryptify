@@ -1,10 +1,10 @@
 import base64
 import json
-import os
+
 import secrets
 import struct
 from datetime import datetime
-import appdirs
+
 
 import oqs
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -34,8 +34,7 @@ class MLKEMCrypto:
         finally:
             secure_erase(_to_bytearray(shared_secret))
 
-        # Compress file and get temp file path
-        compressed_temp_file = self.compobj.compress_file(infile)
+
 
         try:
             aesgcm = AESGCM(aes_key)
@@ -48,14 +47,15 @@ class MLKEMCrypto:
                 chunk_index = 0
                 enc_chunk_buffer = bytearray()
 
-                with open(compressed_temp_file, 'rb') as fin:
+                with open(infile, 'rb') as fin:
                     while True:
                         chunk = fin.read(self.CHUNK_SIZE)
                         if not chunk:
                             break
 
+                        compressed_chunked = self.compobj.compress_file(chunk)
                         nonce = nonce_prefix + struct.pack(">I", chunk_index)
-                        encrypted_chunk = aesgcm.encrypt(nonce, chunk, associated_data=None)
+                        encrypted_chunk = aesgcm.encrypt(nonce, compressed_chunked, associated_data=None)
 
                         # Add length prefix + encrypted data to buffer
                         enc_chunk_buffer.extend(struct.pack(">I", len(encrypted_chunk)))
@@ -74,10 +74,6 @@ class MLKEMCrypto:
 
         finally:
             secure_erase(_to_bytearray(aes_key))
-            # Clean up compressed temp file
-            if os.path.exists(compressed_temp_file):
-                os.unlink(compressed_temp_file)
-                print(f"Compressed temp file cleaned up: {compressed_temp_file}")
 
         pkg = {
             "ciphertext": base64.b64encode(ciphertext).decode('utf-8'),
@@ -94,7 +90,7 @@ class MLKEMCrypto:
 
     def reencrypt_data(self, data: dict, key: bytes, outfile: str):
         """Re-encrypt data using symmetric key encryption (AESGCM)."""
-        print("Re-encrypting data... ")
+        print("Encrypting Metadata... ")
         nonce_prefix = secrets.token_bytes(12)
         key_bytes = base64.b64encode(key).decode("utf-8")
         aes_key = derive_key_argon2(key_bytes, nonce_prefix, 32)
